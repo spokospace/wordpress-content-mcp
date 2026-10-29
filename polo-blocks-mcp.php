@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Polo Blocks MCP
  * Description:       Block-level editing abilities for Gutenberg posts, exposed to AI agents through the MCP Adapter.
- * Version:           1.1.0
+ * Version:           1.2.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -64,7 +64,7 @@ final class Polo_Blocks_MCP {
 			'blocks',
 			'Polo Blocks',
 			'Read and edit Gutenberg blocks of polo.blue posts.',
-			'1.1.0',
+			'1.2.0',
 			array( \WP\MCP\Transport\HttpTransport::class ),
 			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
 			null,
@@ -282,6 +282,22 @@ final class Polo_Blocks_MCP {
 					'required'   => array( 'post_id', 'path', 'expected_hash' ),
 				),
 				'execute_callback'    => array( __CLASS__, 'unwrap_block' ),
+				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
+				'meta'                => array( 'annotations' => self::write( false ) ),
+			),
+			'polo-blocks/link-images'   => array(
+				'label'               => 'Link images to the full file',
+				'description'         => 'Link every core/image block of a post that has no link (including images in galleries and columns) to its full-size file, so a lightbox can open it. Sets linkDestination "media" and wraps the <img> in <a href>. Skips images that already have a link outside the caption, figures with the "no-lightbox" class, and images whose full file cannot be told. Run with dry_run first to see which paths change.',
+				'input_schema'        => array(
+					'type'       => 'object',
+					'properties' => array(
+						'post_id'       => $post_id,
+						'expected_hash' => $hash,
+						'dry_run'       => $dry_run,
+					),
+					'required'   => array( 'post_id', 'expected_hash' ),
+				),
+				'execute_callback'    => array( __CLASS__, 'link_images' ),
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::write( false ) ),
 			),
@@ -669,6 +685,128 @@ final class Polo_Blocks_MCP {
 	}
 
 	/**
+	 * @param array $input Ability input.
+	 * @return array|WP_Error
+	 */
+	public static function link_images( $input = array() ) {
+		$post = self::load_post( $input );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+		$stale = self::check_hash( $post, $input );
+		if ( $stale ) {
+			return $stale;
+		}
+
+		$linked  = array();
+		$skipped = array();
+		$blocks  = self::link_image_blocks( parse_blocks( $post->post_content ), array(), $linked, $skipped );
+
+		$result = array(
+			'post_id' => $post->ID,
+			'linked'  => $linked,
+			'skipped' => $skipped,
+		);
+		if ( ! $linked ) {
+			return $result + array(
+				'saved'        => false,
+				'content_hash' => self::hash( $post->post_content ),
+			);
+		}
+
+		$saved = self::save( $post, serialize_blocks( $blocks ), ! empty( $input['dry_run'] ) );
+		return is_wp_error( $saved ) ? $saved : $result + $saved;
+	}
+
+	/**
+	 * Walks the tree and links every unlinked core/image block, recording what changed.
+	 *
+	 * @param array $blocks  Block list.
+	 * @param int[] $prefix  Path of the parent.
+	 * @param array $linked  Collects { path, href }.
+	 * @param array $skipped Collects { path, reason } for unlinked images that were left alone.
+	 */
+	private static function link_image_blocks( array $blocks, array $prefix, array &$linked, array &$skipped ): array {
+		foreach ( $blocks as $i => $block ) {
+			$path = array_merge( $prefix, array( $i ) );
+			if ( 'core/image' === $block['blockName'] ) {
+				$outcome = self::link_image_block( $block );
+				if ( is_array( $outcome ) ) {
+					$blocks[ $i ] = $outcome['block'];
+					$linked[]     = array(
+						'path' => implode( '.', $path ),
+						'href' => $outcome['href'],
+					);
+				} elseif ( '' !== $outcome ) {
+					$skipped[] = array(
+						'path'   => implode( '.', $path ),
+						'reason' => $outcome,
+					);
+				}
+				continue;
+			}
+			$blocks[ $i ]['innerBlocks'] = self::link_image_blocks( $block['innerBlocks'], $path, $linked, $skipped );
+		}
+		return $blocks;
+	}
+
+	/**
+	 * Links one image block to its full file.
+	 *
+	 * @return array|string { block, href } when linked; '' when it already has a link; otherwise why it was skipped.
+	 */
+	private static function link_image_block( array $block ) {
+		$html = $block['innerHTML'];
+
+		// A link outside the caption means the image is already linked.
+		if ( preg_match( '/<a\b/i', preg_replace( '#<figcaption\b.*?</figcaption>#is', '', $html ) ) ) {
+			return '';
+		}
+		if ( preg_match( '/<figure\b[^>]*\bclass="([^"]*)"/i', $html, $figure ) && preg_match( '/(?:^|\s)no-lightbox(?:\s|$)/', $figure[1] ) ) {
+			return 'no-lightbox';
+		}
+		// Image blocks have no inner blocks, so innerContent is the innerHTML as one string.
+		if ( array( $html ) !== $block['innerContent'] ) {
+			return 'unexpected markup';
+		}
+		if ( ! preg_match( '/<img\b[^>]*\bsrc="([^"]+)"[^>]*>/i', $html, $img, PREG_OFFSET_CAPTURE ) ) {
+			return 'no img';
+		}
+
+		$href = self::full_image_url( isset( $block['attrs']['id'] ) ? (int) $block['attrs']['id'] : 0, html_entity_decode( $img[1][0] ) );
+		if ( '' === $href ) {
+			return 'full file unknown';
+		}
+
+		$tag  = $img[0][0];
+		$html = substr_replace( $html, '<a href="' . esc_url( $href ) . '">' . $tag . '</a>', $img[0][1], strlen( $tag ) );
+
+		$block['attrs']['linkDestination'] = 'media';
+		$block['innerHTML']                = $html;
+		$block['innerContent']             = array( $html );
+
+		return array(
+			'block' => $block,
+			'href'  => $href,
+		);
+	}
+
+	/**
+	 * Full-size file of an image: the attachment URL (the "-scaled" file for big uploads), which is
+	 * what the editor stores for "link to: media file", or the src without its -WxH size suffix when
+	 * there is no attachment. '' when neither works.
+	 */
+	private static function full_image_url( int $id, string $src ): string {
+		$full = $id ? wp_get_attachment_url( $id ) : false;
+		if ( $full ) {
+			return $full;
+		}
+
+		$stripped = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)(?:\?.*)?$/', '$1', $src, 1, $count );
+		return $count ? $stripped : '';
+	}
+
+	/**
 	 * Finds the path of the block carrying the move marker.
 	 *
 	 * @return int[]|null
@@ -701,11 +839,9 @@ final class Polo_Blocks_MCP {
 			return $post;
 		}
 
-		if ( self::hash( $post->post_content ) !== (string) $input['expected_hash'] ) {
-			return new WP_Error(
-				'stale_hash',
-				'The post changed since it was read. Read it again (get-outline or get-blocks) and retry with the new content_hash.'
-			);
+		$stale = self::check_hash( $post, $input );
+		if ( $stale ) {
+			return $stale;
 		}
 
 		self::$eol2 = false !== strpos( $post->post_content, "\r\n" ) ? "\r\n\r\n" : "\n\n";
@@ -729,13 +865,24 @@ final class Polo_Blocks_MCP {
 			return $blocks;
 		}
 
-		$content  = serialize_blocks( $blocks );
+		return self::save( $post, serialize_blocks( $blocks ), ! empty( $input['dry_run'] ) );
+	}
+
+	/**
+	 * Validates new content and saves it as a normal post update (which keeps a revision).
+	 *
+	 * @param WP_Post $post    Post being edited.
+	 * @param string  $content New serialized content.
+	 * @param bool    $dry_run Validate only.
+	 * @return array|WP_Error
+	 */
+	private static function save( $post, string $content, bool $dry_run ) {
 		$problems = self::find_problems( $content );
 		if ( $problems ) {
 			return new WP_Error( 'invalid_result', 'The edit would break the block structure: ' . implode( ' | ', $problems ) );
 		}
 
-		if ( ! empty( $input['dry_run'] ) ) {
+		if ( $dry_run ) {
 			return array(
 				'dry_run'      => true,
 				'saved'        => false,
@@ -1052,6 +1199,21 @@ final class Polo_Blocks_MCP {
 			return new WP_Error( 'not_found', 'Post not found.' );
 		}
 		return $post;
+	}
+
+	/**
+	 * Refuses a write when the post changed since the caller read it.
+	 *
+	 * @return WP_Error|null
+	 */
+	private static function check_hash( $post, array $input ) {
+		if ( self::hash( $post->post_content ) === (string) $input['expected_hash'] ) {
+			return null;
+		}
+		return new WP_Error(
+			'stale_hash',
+			'The post changed since it was read. Read it again (get-outline or get-blocks) and retry with the new content_hash.'
+		);
 	}
 
 	private static function hash( string $content ): string {
