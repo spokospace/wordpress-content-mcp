@@ -26,8 +26,10 @@ $GLOBALS['saved'] = array();
 function get_post( $id ) { return $GLOBALS['posts'][ $id ] ?? null; }
 function wp_update_post( $arr ) { $GLOBALS['posts'][ $arr['ID'] ]->post_content = $arr['post_content']; $GLOBALS['saved'][] = $arr['ID']; return $arr['ID']; }
 function wp_get_post_revisions() { return array( 999 => true ); }
-// Attachment URLs as the media library stores them: the -scaled original on img.polo.blue.
-function wp_get_attachment_url( $id ) { return 24399 === $id ? false : "https://img.polo.blue/2021/06/att-$id-scaled.jpg"; }
+// Attachment URLs as the media library returns them: the -scaled original under the uploads base URL.
+function wp_get_attachment_url( $id ) { return 24399 === $id ? false : "https://blog.polo.blue/images/2021/06/att-$id-scaled.jpg"; }
+// Stored as http on purpose: the rewrite to the public address must not depend on the scheme.
+function wp_get_upload_dir() { return array( 'baseurl' => 'http://blog.polo.blue/images' ); }
 
 require $argv[2];
 
@@ -56,6 +58,10 @@ $content = implode( "\n\n", array(
 	img( 24399, array(), '<figure class="wp-block-image size-large"><img src="https://blog.polo.blue/images/2021/06/coolbox-1200x900.jpg" alt=""/></figure>' ),
 	// no id, no suffix -> skipped
 	img( 0, array(), '<figure class="wp-block-image"><img src="https://example.com/plain.jpg" alt=""/></figure>' ),
+	// no attachment, old img.polo.blue src -> public address
+	img( 0, array(), '<figure class="wp-block-image"><img src="https://img.polo.blue/2023/06/IMAG1884-1200x675.jpg" alt=""/></figure>' ),
+	// no attachment, foreign host -> left on its host
+	img( 0, array(), '<figure class="wp-block-image"><img src="https://example.com/pic-300x200.jpg" alt=""/></figure>' ),
 	// link only in caption -> image still gets linked
 	img( 600, array(), '<figure class="wp-block-image"><img src="' . sprintf( $src, 6 ) . '" alt="" class="wp-image-600"/><figcaption class="wp-element-caption"><a href="/y">cap</a></figcaption></figure>' ),
 ) );
@@ -75,21 +81,24 @@ check( 'stale hash refused', is_wp_error( $r ) && 'stale_hash' === $r->code );
 $r = Polo_Blocks_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash, 'dry_run' => true ) );
 echo json_encode( array( 'linked' => $r['linked'], 'skipped' => $r['skipped'] ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ), "\n";
 check( 'dry run does not save', ! $GLOBALS['saved'] && $GLOBALS['posts'][1]->post_content === $content && true === $r['dry_run'] );
-check( 'dry run links 5 images', 5 === count( $r['linked'] ) );
-check( 'linked paths', array( '2.0', '2.2', '4.0.0.0', '8', '12' ) === array_column( $r['linked'], 'path' ) );
+check( 'dry run links 7 images', 7 === count( $r['linked'] ) );
+check( 'linked paths', array( '2.0', '2.2', '4.0.0.0', '8', '12', '14', '16' ) === array_column( $r['linked'], 'path' ) );
 check( 'skips opt-out and unknown file', array( array( 'path' => '6', 'reason' => 'no-lightbox' ), array( 'path' => '10', 'reason' => 'full file unknown' ) ) === $r['skipped'] );
 
 // 3. real save
 $r   = Polo_Blocks_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash ) );
 $new = $GLOBALS['posts'][1]->post_content;
 check( 'saved once', array( 1 ) === $GLOBALS['saved'] && true === $r['saved'] && md5( $new ) === $r['content_hash'] );
-check( 'href = attachment URL', false !== strpos( $new, '<a href="https://img.polo.blue/2021/06/att-24412-scaled.jpg"><img src="' . sprintf( $src, 1 ) . '"' ) );
+check( 'href = attachment file on the public address', false !== strpos( $new, '<a href="https://polo.blue/images/2021/06/att-24412-scaled.jpg"><img src="' . sprintf( $src, 1 ) . '"' ) );
 check( 'linkDestination media in attrs', false !== strpos( $new, '"id":24412,"sizeSlug":"large","linkDestination":"media"' ) );
-check( 'already linked untouched, no double <a>', 1 === substr_count( $new, 'linked-scaled-1.jpg' ) && 0 === substr_count( $new, '<a href="https://img.polo.blue/2021/06/att-24404' ) );
+check( 'already linked untouched, no double <a>', 1 === substr_count( $new, 'linked-scaled-1.jpg' ) && 0 === substr_count( $new, 'att-24404' ) );
 check( 'nested in columns linked', false !== strpos( $new, 'att-24394-scaled.jpg' ) );
-check( 'fallback strips -WxH', false !== strpos( $new, '<a href="https://blog.polo.blue/images/2021/06/coolbox.jpg">' ) );
+check( 'fallback strips -WxH', false !== strpos( $new, '<a href="https://polo.blue/images/2021/06/coolbox.jpg">' ) );
+check( 'img.polo.blue src -> public address', false !== strpos( $new, '<a href="https://polo.blue/images/2023/06/IMAG1884.jpg">' ) );
+check( 'foreign host left alone', false !== strpos( $new, '<a href="https://example.com/pic.jpg">' ) );
+check( 'no subdomain in any new link', ! preg_grep( '#^https?://(img|blog)\.polo\.blue/#', array_column( $r['linked'], 'href' ) ) );
 check( 'opt-out untouched', false === strpos( $new, 'att-500' ) );
-check( 'caption link kept, image linked', false !== strpos( $new, '<a href="https://img.polo.blue/2021/06/att-600-scaled.jpg"><img' ) && false !== strpos( $new, '<a href="/y">cap</a>' ) );
+check( 'caption link kept, image linked', false !== strpos( $new, '<a href="https://polo.blue/images/2021/06/att-600-scaled.jpg"><img' ) && false !== strpos( $new, '<a href="/y">cap</a>' ) );
 check( 'img count unchanged', substr_count( $content, '<img' ) === substr_count( $new, '<img' ) );
 check( 'everything outside images byte-identical', preg_replace( '#<a href="[^"]*">(<img[^>]*>)</a>#', '$1', str_replace( ',"linkDestination":"media"', '', str_replace( '"linkDestination":"none"', '"linkDestination":"media"', $new ) ) ) === preg_replace( '#<a href="[^"]*">(<img[^>]*>)</a>#', '$1', str_replace( ',"linkDestination":"media"', '', str_replace( '"linkDestination":"none"', '"linkDestination":"media"', $content ) ) ) );
 

@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Polo Blocks MCP
  * Description:       Block-level editing abilities for Gutenberg posts, exposed to AI agents through the MCP Adapter.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -21,6 +21,11 @@ defined( 'ABSPATH' ) || exit;
 final class Polo_Blocks_MCP {
 
 	const CATEGORY = 'polo-blocks';
+
+	/**
+	 * Public address of the media library: link-images writes links to it.
+	 */
+	const PUBLIC_MEDIA_BASE = 'https://polo.blue/images';
 
 	/**
 	 * Blank-line separator matching the line endings of the post being edited.
@@ -64,7 +69,7 @@ final class Polo_Blocks_MCP {
 			'blocks',
 			'Polo Blocks',
 			'Read and edit Gutenberg blocks of polo.blue posts.',
-			'1.2.0',
+			'1.2.1',
 			array( \WP\MCP\Transport\HttpTransport::class ),
 			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
 			null,
@@ -792,18 +797,38 @@ final class Polo_Blocks_MCP {
 	}
 
 	/**
-	 * Full-size file of an image: the attachment URL (the "-scaled" file for big uploads), which is
-	 * what the editor stores for "link to: media file", or the src without its -WxH size suffix when
-	 * there is no attachment. '' when neither works.
+	 * Full-size file of an image, on the public media address: the attachment URL (the "-scaled"
+	 * file for big uploads), or the src without its -WxH size suffix when there is no attachment.
+	 * '' when neither works.
 	 */
 	private static function full_image_url( int $id, string $src ): string {
 		$full = $id ? wp_get_attachment_url( $id ) : false;
-		if ( $full ) {
-			return $full;
+		if ( ! $full ) {
+			$full = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)(?:\?.*)?$/', '$1', $src, 1, $count );
+			if ( ! $count ) {
+				return '';
+			}
 		}
+		return self::public_media_url( $full );
+	}
 
-		$stripped = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)(?:\?.*)?$/', '$1', $src, 1, $count );
-		return $count ? $stripped : '';
+	/**
+	 * Rewrites a media file URL to the public address polo.blue serves it from
+	 * (https://polo.blue/images/YYYY/MM/file): links in content carry no subdomain. Media URLs come
+	 * from the uploads base URL (https://blog.polo.blue/images) or the old img.polo.blue host;
+	 * anything else is returned unchanged.
+	 */
+	private static function public_media_url( string $url ): string {
+		$bases = array( wp_get_upload_dir()['baseurl'], 'https://img.polo.blue' );
+		foreach ( $bases as $base ) {
+			// Compare without the scheme: the uploads base URL may be stored as http.
+			$base = preg_replace( '#^https?:#i', '', rtrim( $base, '/' ) ) . '/';
+			$rest = preg_replace( '#^https?:#i', '', $url );
+			if ( 0 === stripos( $rest, $base ) ) {
+				return self::PUBLIC_MEDIA_BASE . '/' . substr( $rest, strlen( $base ) );
+			}
+		}
+		return $url;
 	}
 
 	/**

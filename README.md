@@ -55,9 +55,12 @@ have no `<a>`, so the lightbox skips them.
 For every `core/image` block in the post, galleries and columns included:
 
 - **Links it:** sets `linkDestination: "media"` and wraps the `<img>` in `<a href="…">`, the same
-  markup the editor saves for "Link to: Media file". The `href` is `wp_get_attachment_url()` of
+  markup the editor saves for "Link to: Media file". The file is `wp_get_attachment_url()` of
   the block's `id`, which for large uploads is the `-scaled` file. If there is no attachment, it
   uses the `src` without its `-WxH` size suffix.
+- **Public address, no subdomain:** the `href` is always `https://polo.blue/images/YYYY/MM/<file>`
+  (`PUBLIC_MEDIA_BASE`). URLs under the uploads base URL (`https://blog.polo.blue/images`) and the
+  old `https://img.polo.blue` host are rewritten to it; other hosts are left as they are.
 - **Leaves it alone** when it already has a link outside the caption (never a double `<a>`).
 - **Skips it** with a reason in `skipped`: `no-lightbox` (the figure has that class; this is the
   opt-out), `full file unknown` (no attachment and no size suffix), `unexpected markup`, `no img`.
@@ -88,5 +91,7 @@ It ends with `ALL PASS` (exit 0) or `FAILURES` (exit 1).
 
 ## Changelog
 
+- **1.2.1**: `link-images` writes links on the public address `https://polo.blue/images/…` instead of
+  `blog.polo.blue` / `img.polo.blue`.
 - **1.2.0**: `link-images` tool. Write flow split into a shared `save()` step.
 - **1.1.0**: version running on blog.polo.blue when this repo was created.
