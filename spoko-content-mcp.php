@@ -11,6 +11,7 @@
  * Author URI:        https://spoko.space
  * License:           MIT
  * License URI:       https://opensource.org/license/mit
+ * Text Domain:       spoko-content-mcp
  *
  * Blocks are addressed by a "path": indexes into the parsed block tree joined with dots.
  * "12" is the 13th top-level block, "12.0.3" is the 4th inner block of the 1st inner block of it.
@@ -1262,5 +1263,9 @@ final class Spoko_Content_MCP {
 
 Spoko_Content_MCP::init();
 
-require_once __DIR__ . '/updater.php';
-Spoko_Content_MCP_Updater::init( __FILE__ );
+// The GitHub build updates itself from GitHub releases. The WordPress.org build ships without
+// updater.php and gets its updates from WordPress.org.
+if ( is_readable( __DIR__ . '/updater.php' ) ) {
+	require_once __DIR__ . '/updater.php';
+	Spoko_Content_MCP_Updater::init( __FILE__ );
+}

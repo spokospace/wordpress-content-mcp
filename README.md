@@ -131,21 +131,35 @@ Tools for the rest of a content workflow, with the same hash, dry-run and revisi
 
 ## Updates and releases
 
-The plugin updates itself from this repo's GitHub releases (`updater.php`), like a plugin from
-wordpress.org: the Plugins screen shows the new version, and with **Enable auto-updates** on,
-WordPress installs it by itself (WP-Cron, about twice a day; **Dashboard → Updates → Check
-again** checks at once). A release counts when its tag is a higher version (`v2.0.1`), it is not
-a draft or a prerelease, and it has the asset `spoko-content-mcp.zip`.
+There are two builds of the same code:
+
+- **GitHub build** (`dist/spoko-content-mcp.zip`, the GitHub release asset) updates itself from
+  this repo's GitHub releases (`updater.php`): the Plugins screen shows the new version, and with
+  **Enable auto-updates** on, WordPress installs it by itself. A release counts when its tag is a
+  higher version (`v2.0.1`), it is not a draft or a prerelease, and it has the asset
+  `spoko-content-mcp.zip`.
+- **WordPress.org build** (`dist/wporg/spoko-content-mcp.zip`) has no `updater.php`, since the
+  plugin directory does not allow plugins to update themselves; WordPress.org delivers its
+  updates. The plugin loads the updater only when the file is there.
 
 Releasing (no CI needed):
 
-1. Bump `Version:` in the plugin header and `VERSION` in the class (the script refuses if they
-   differ), add a changelog entry, merge to `main`.
-2. On `main`, run `bin/release.sh --publish`. It builds `dist/spoko-content-mcp.zip` (top folder
-   `spoko-content-mcp/`) with `git archive` and creates the release `v<version>` with the
-   changelog entry as notes. Without `--publish` it only builds the zip. On Windows, run it from
-   Git Bash: `bash` started from PowerShell may be WSL, whose git sees the checkout as modified
-   and the script refuses.
+1. Bump `Version:` in the plugin header, `VERSION` in the class and `Stable tag` in `readme.txt`
+   (the script refuses if they differ), add changelog entries to `README.md` and `readme.txt`,
+   merge to `main`.
+2. On `main`, run `bin/release.sh --publish`. It builds both zips with `git archive` (top folder
+   `spoko-content-mcp/`) and creates the GitHub release `v<version>` with the changelog entry as
+   notes. Without `--publish` it only builds the zips. On Windows, run it from Git Bash: `bash`
+   started from PowerShell may be WSL, whose git sees the checkout as modified and the script
+   refuses.
+3. WordPress.org (once the plugin is approved): copy the WordPress.org build into the SVN
+   checkout's `trunk/`, copy `trunk/` to `tags/<version>/`, and `svn commit`. The directory
+   assets (banner, icon) are `art/wporg/*.jpg|png` and go to SVN `assets/`; repaint them with
+   `python art/wporg/render.py`.
+
+Before a WordPress.org release, run [Plugin Check](https://wordpress.org/plugins/plugin-check/)
+on the WordPress.org build (`wp plugin check spoko-content-mcp`); 2.0.1 passes with no errors or
+warnings, experimental checks included.
 
 ## Tests
 
