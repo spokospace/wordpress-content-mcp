@@ -160,26 +160,14 @@ php tests/updater.php
 the given WordPress checkout) with stubs for the rest. `updater.php` checks the updater against
 stubbed GitHub responses. Both exit 0 when everything passes.
 
-## Upgrading from Polo Blocks MCP (1.x)
-
-Version 2.0 renamed the plugin (folder `spoko-content-mcp`), its tools (`spoko-content-*`) and its
-endpoint (`/wp-json/spoko/content`). WordPress sees it as a new plugin:
-
-1. Install and activate Spoko Content MCP, then deactivate and delete Polo Blocks MCP.
-2. Until 3.0 the old endpoint `/wp-json/polo/blocks` serves the same tools, so existing MCP
-   clients stay connected. The tools have the new names (`spoko-content-get-outline`, not
-   `polo-blocks-get-outline`), so tool allowlists and saved prompts need updating either way.
-   Switch clients to `/wp-json/spoko/content` when convenient.
-
 ## Changelog
 
-- **2.0.0**: renamed to Spoko Content MCP (repo `wordpress-content-mcp`, tools `spoko-content-*`,
-  endpoint `spoko/content`; the old `polo/blocks` endpoint stays until 3.0). Updates from GitHub
-  releases (`updater.php`, `bin/release.sh`). The public media address for `link-images` is a
-  setting (`SPOKO_CONTENT_MCP_MEDIA_BASE`, filters) instead of a fixed host. MIT license.
-- **1.2.1**: `link-images` writes links on a fixed public media address.
-- **1.2.0**: `link-images` tool. Write flow split into a shared `save()` step.
-- **1.1.0**: first version in this repo.
+- **2.0.1**: one endpoint only, `/wp-json/spoko/content`.
+- **2.0.0**: first public release. Block tools (`find-posts`, `get-outline`, `get-blocks`,
+  `validate-post`, `find-media`, `replace-block`, `insert-blocks`, `delete-block`, `move-blocks`,
+  `unwrap-block`, `link-images`) at `/wp-json/spoko/content`, a configurable public media address
+  for `link-images` (`SPOKO_CONTENT_MCP_MEDIA_BASE`, filters), updates from GitHub releases. MIT
+  license.
 
 ## Made by spoko.space
 
@@ -191,8 +179,7 @@ endpoint (`/wp-json/spoko/content`). WordPress sees it as a new plugin:
 </a>
 
 Spoko Content MCP is built and maintained by [spoko.space](https://spoko.space): websites,
-online shops and web apps, headless WordPress included. It edits the content of
-[blog.polo.blue](https://blog.polo.blue). Questions and ideas are welcome as
+online shops and web apps, headless WordPress included. Questions and ideas are welcome as
 [issues](https://github.com/spokospace/wordpress-content-mcp/issues).
 
 ## License

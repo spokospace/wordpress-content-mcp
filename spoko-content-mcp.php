@@ -3,7 +3,7 @@
  * Plugin Name:       Spoko Content MCP
  * Plugin URI:        https://github.com/spokospace/wordpress-content-mcp
  * Description:       Lets AI agents read and edit posts and their Gutenberg blocks safely, through the WordPress MCP Adapter.
- * Version:           2.0.0
+ * Version:           2.0.1
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -28,7 +28,7 @@ final class Spoko_Content_MCP {
 	/**
 	 * Must match the Version header (bin/release.sh refuses to build when they differ).
 	 */
-	const VERSION = '2.0.0';
+	const VERSION = '2.0.1';
 
 	/**
 	 * Blank-line separator matching the line endings of the post being edited.
@@ -63,33 +63,21 @@ final class Spoko_Content_MCP {
 	 * Registers a dedicated MCP server so every ability is a direct tool with its own schema.
 	 * Endpoint: /wp-json/spoko/content
 	 *
-	 * Until 3.0 the same tools (under their new spoko-content-* names) are also served at
-	 * /wp-json/polo/blocks, the endpoint of Polo Blocks MCP (1.x), so MCP clients configured for
-	 * it stay connected after the switch. Skipped while Polo Blocks MCP itself is still active.
-	 *
 	 * @param object $adapter The MCP adapter instance.
 	 */
 	public static function register_server( $adapter ): void {
-		$tools  = array_keys( self::abilities() );
-		$create = static function ( string $id, string $namespace, string $route, string $name ) use ( $adapter, $tools ): void {
-			$adapter->create_server(
-				$id,
-				$namespace,
-				$route,
-				$name,
-				'Read and edit posts and their Gutenberg blocks.',
-				self::VERSION,
-				array( \WP\MCP\Transport\HttpTransport::class ),
-				\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
-				null,
-				$tools
-			);
-		};
-
-		$create( 'spoko-content', 'spoko', 'content', 'Spoko Content' );
-		if ( ! class_exists( 'Polo_Blocks_MCP' ) ) {
-			$create( 'polo-blocks', 'polo', 'blocks', 'Spoko Content (old endpoint)' );
-		}
+		$adapter->create_server(
+			'spoko-content',
+			'spoko',
+			'content',
+			'Spoko Content',
+			'Read and edit posts and their Gutenberg blocks.',
+			self::VERSION,
+			array( \WP\MCP\Transport\HttpTransport::class ),
+			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
+			null,
+			array_keys( self::abilities() )
+		);
 	}
 
 	/**
