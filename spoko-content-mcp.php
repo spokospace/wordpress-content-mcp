@@ -1,13 +1,16 @@
 <?php
 /**
- * Plugin Name:       Polo Blocks MCP
- * Description:       Block-level editing abilities for Gutenberg posts, exposed to AI agents through the MCP Adapter.
- * Version:           1.1.0
+ * Plugin Name:       Spoko Content MCP
+ * Plugin URI:        https://github.com/spokospace/wordpress-content-mcp
+ * Description:       Lets AI agents read and edit posts and their Gutenberg blocks safely, through the WordPress MCP Adapter.
+ * Version:           2.0.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
- * Author:            polo.blue
- * License:           GPL-2.0-or-later
+ * Author:            spoko.space
+ * Author URI:        https://spoko.space
+ * License:           MIT
+ * License URI:       https://opensource.org/license/mit
  *
  * Blocks are addressed by a "path": indexes into the parsed block tree joined with dots.
  * "12" is the 13th top-level block, "12.0.3" is the 4th inner block of the 1st inner block of it.
@@ -18,9 +21,14 @@
 
 defined( 'ABSPATH' ) || exit;
 
-final class Polo_Blocks_MCP {
+final class Spoko_Content_MCP {
 
-	const CATEGORY = 'polo-blocks';
+	const CATEGORY = 'spoko-content';
+
+	/**
+	 * Must match the Version header (bin/release.sh refuses to build when they differ).
+	 */
+	const VERSION = '2.0.0';
 
 	/**
 	 * Blank-line separator matching the line endings of the post being edited.
@@ -45,31 +53,43 @@ final class Polo_Blocks_MCP {
 		wp_register_ability_category(
 			self::CATEGORY,
 			array(
-				'label'       => 'Polo Blocks',
-				'description' => 'Reading and editing Gutenberg blocks of posts.',
+				'label'       => 'Spoko Content',
+				'description' => 'Reading and editing posts and their Gutenberg blocks.',
 			)
 		);
 	}
 
 	/**
 	 * Registers a dedicated MCP server so every ability is a direct tool with its own schema.
-	 * Endpoint: /wp-json/polo/blocks
+	 * Endpoint: /wp-json/spoko/content
+	 *
+	 * Until 3.0 the same tools (under their new spoko-content-* names) are also served at
+	 * /wp-json/polo/blocks, the endpoint of Polo Blocks MCP (1.x), so MCP clients configured for
+	 * it stay connected after the switch. Skipped while Polo Blocks MCP itself is still active.
 	 *
 	 * @param object $adapter The MCP adapter instance.
 	 */
 	public static function register_server( $adapter ): void {
-		$adapter->create_server(
-			'polo-blocks',
-			'polo',
-			'blocks',
-			'Polo Blocks',
-			'Read and edit Gutenberg blocks of polo.blue posts.',
-			'1.1.0',
-			array( \WP\MCP\Transport\HttpTransport::class ),
-			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
-			null,
-			array_keys( self::abilities() )
-		);
+		$tools  = array_keys( self::abilities() );
+		$create = static function ( string $id, string $namespace, string $route, string $name ) use ( $adapter, $tools ): void {
+			$adapter->create_server(
+				$id,
+				$namespace,
+				$route,
+				$name,
+				'Read and edit posts and their Gutenberg blocks.',
+				self::VERSION,
+				array( \WP\MCP\Transport\HttpTransport::class ),
+				\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
+				null,
+				$tools
+			);
+		};
+
+		$create( 'spoko-content', 'spoko', 'content', 'Spoko Content' );
+		if ( ! class_exists( 'Polo_Blocks_MCP' ) ) {
+			$create( 'polo-blocks', 'polo', 'blocks', 'Spoko Content (old endpoint)' );
+		}
 	}
 
 	/**
@@ -115,7 +135,7 @@ final class Polo_Blocks_MCP {
 		);
 
 		return array(
-			'polo-blocks/find-posts'    => array(
+			'spoko-content/find-posts'    => array(
 				'label'               => 'Find posts',
 				'description'         => 'Search posts and pages by title text, slug or ID. Returns IDs, titles, status and links.',
 				'input_schema'        => array(
@@ -143,7 +163,7 @@ final class Polo_Blocks_MCP {
 				},
 				'meta'                => array( 'annotations' => self::read_only() ),
 			),
-			'polo-blocks/get-outline'   => array(
+			'spoko-content/get-outline'   => array(
 				'label'               => 'Get block outline',
 				'description'         => 'List the blocks of a post as a tree of paths with block names and short text previews. Use it to find the path of the block to read or edit.',
 				'input_schema'        => array(
@@ -164,7 +184,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::read_only() ),
 			),
-			'polo-blocks/get-blocks'    => array(
+			'spoko-content/get-blocks'    => array(
 				'label'               => 'Get block markup',
 				'description'         => 'Return the serialized markup of one or more blocks by path, plus the content_hash needed for writes.',
 				'input_schema'        => array(
@@ -184,7 +204,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::read_only() ),
 			),
-			'polo-blocks/replace-block' => array(
+			'spoko-content/replace-block' => array(
 				'label'               => 'Replace block',
 				'description'         => 'Replace the block at a path with new markup (one or more blocks).',
 				'input_schema'        => array(
@@ -202,7 +222,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::write( false ) ),
 			),
-			'polo-blocks/insert-blocks' => array(
+			'spoko-content/insert-blocks' => array(
 				'label'               => 'Insert blocks',
 				'description'         => 'Insert new blocks before or after the block at a path.',
 				'input_schema'        => array(
@@ -224,7 +244,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::write( false ) ),
 			),
-			'polo-blocks/delete-block'  => array(
+			'spoko-content/delete-block'  => array(
 				'label'               => 'Delete block',
 				'description'         => 'Delete the block at a path (a revision is kept).',
 				'input_schema'        => array(
@@ -241,7 +261,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::write( true ) ),
 			),
-			'polo-blocks/move-blocks'   => array(
+			'spoko-content/move-blocks'   => array(
 				'label'               => 'Move blocks',
 				'description'         => 'Move one or more consecutive sibling blocks (starting at from_path) next to the block at target_path, keeping their markup unchanged. target_path is given as it is BEFORE the move. Use it to restructure content without re-sending it.',
 				'input_schema'        => array(
@@ -268,7 +288,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::write( false ) ),
 			),
-			'polo-blocks/unwrap-block'  => array(
+			'spoko-content/unwrap-block'  => array(
 				'label'               => 'Unwrap block',
 				'description'         => 'Replace a container block (e.g. a group) with its inner blocks, keeping their markup unchanged.',
 				'input_schema'        => array(
@@ -285,7 +305,23 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::write( false ) ),
 			),
-			'polo-blocks/validate-post' => array(
+			'spoko-content/link-images'   => array(
+				'label'               => 'Link images to the full file',
+				'description'         => 'Link every core/image block of a post that has no link (including images in galleries and columns) to its full-size file, so a lightbox can open it. Sets linkDestination "media" and wraps the <img> in <a href>. Skips images that already have a link outside the caption, figures with the "no-lightbox" class, and images whose full file cannot be told. Run with dry_run first to see which paths change.',
+				'input_schema'        => array(
+					'type'       => 'object',
+					'properties' => array(
+						'post_id'       => $post_id,
+						'expected_hash' => $hash,
+						'dry_run'       => $dry_run,
+					),
+					'required'   => array( 'post_id', 'expected_hash' ),
+				),
+				'execute_callback'    => array( __CLASS__, 'link_images' ),
+				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
+				'meta'                => array( 'annotations' => self::write( false ) ),
+			),
+			'spoko-content/validate-post' => array(
 				'label'               => 'Validate post blocks',
 				'description'         => 'Check a post for broken block structure: stray freeform HTML between blocks and unbalanced block comments.',
 				'input_schema'        => array(
@@ -297,7 +333,7 @@ final class Polo_Blocks_MCP {
 				'permission_callback' => array( __CLASS__, 'can_edit_input_post' ),
 				'meta'                => array( 'annotations' => self::read_only() ),
 			),
-			'polo-blocks/find-media'    => array(
+			'spoko-content/find-media'    => array(
 				'label'               => 'Find media',
 				'description'         => 'Search the media library by file name or title. Returns attachment IDs, URLs and image sizes for use in image and video blocks.',
 				'input_schema'        => array(
@@ -613,7 +649,7 @@ final class Polo_Blocks_MCP {
 				// Mark the target so it can be found again after the removal shifts paths.
 				$marker              = $blocks;
 				$target_block        = self::block_at( $marker, $target );
-				$target_block['attrs']['__polo_move_target'] = true;
+				$target_block['attrs']['__spoko_move_target'] = true;
 				$blocks              = self::set_block_at( $blocks, $target, $target_block );
 
 				$moved = array();
@@ -632,7 +668,7 @@ final class Polo_Blocks_MCP {
 					return new WP_Error( 'target_lost', 'Could not locate the target after removing the moved blocks.' );
 				}
 				$target_block = self::block_at( $blocks, $new_target );
-				unset( $target_block['attrs']['__polo_move_target'] );
+				unset( $target_block['attrs']['__spoko_move_target'] );
 				$blocks = self::set_block_at( $blocks, $new_target, $target_block );
 
 				return self::insert_at( $blocks, $new_target, $after, $moved );
@@ -669,6 +705,155 @@ final class Polo_Blocks_MCP {
 	}
 
 	/**
+	 * @param array $input Ability input.
+	 * @return array|WP_Error
+	 */
+	public static function link_images( $input = array() ) {
+		$post = self::load_post( $input );
+		if ( is_wp_error( $post ) ) {
+			return $post;
+		}
+		$stale = self::check_hash( $post, $input );
+		if ( $stale ) {
+			return $stale;
+		}
+
+		$linked  = array();
+		$skipped = array();
+		$blocks  = self::link_image_blocks( parse_blocks( $post->post_content ), array(), $linked, $skipped );
+
+		$result = array(
+			'post_id' => $post->ID,
+			'linked'  => $linked,
+			'skipped' => $skipped,
+		);
+		if ( ! $linked ) {
+			return $result + array(
+				'saved'        => false,
+				'content_hash' => self::hash( $post->post_content ),
+			);
+		}
+
+		$saved = self::save( $post, serialize_blocks( $blocks ), ! empty( $input['dry_run'] ) );
+		return is_wp_error( $saved ) ? $saved : $result + $saved;
+	}
+
+	/**
+	 * Walks the tree and links every unlinked core/image block, recording what changed.
+	 *
+	 * @param array $blocks  Block list.
+	 * @param int[] $prefix  Path of the parent.
+	 * @param array $linked  Collects { path, href }.
+	 * @param array $skipped Collects { path, reason } for unlinked images that were left alone.
+	 */
+	private static function link_image_blocks( array $blocks, array $prefix, array &$linked, array &$skipped ): array {
+		foreach ( $blocks as $i => $block ) {
+			$path = array_merge( $prefix, array( $i ) );
+			if ( 'core/image' === $block['blockName'] ) {
+				$outcome = self::link_image_block( $block );
+				if ( is_array( $outcome ) ) {
+					$blocks[ $i ] = $outcome['block'];
+					$linked[]     = array(
+						'path' => implode( '.', $path ),
+						'href' => $outcome['href'],
+					);
+				} elseif ( '' !== $outcome ) {
+					$skipped[] = array(
+						'path'   => implode( '.', $path ),
+						'reason' => $outcome,
+					);
+				}
+				continue;
+			}
+			$blocks[ $i ]['innerBlocks'] = self::link_image_blocks( $block['innerBlocks'], $path, $linked, $skipped );
+		}
+		return $blocks;
+	}
+
+	/**
+	 * Links one image block to its full file.
+	 *
+	 * @return array|string { block, href } when linked; '' when it already has a link; otherwise why it was skipped.
+	 */
+	private static function link_image_block( array $block ) {
+		$html = $block['innerHTML'];
+
+		// A link outside the caption means the image is already linked.
+		if ( preg_match( '/<a\b/i', preg_replace( '#<figcaption\b.*?</figcaption>#is', '', $html ) ) ) {
+			return '';
+		}
+		if ( preg_match( '/<figure\b[^>]*\bclass="([^"]*)"/i', $html, $figure ) && preg_match( '/(?:^|\s)no-lightbox(?:\s|$)/', $figure[1] ) ) {
+			return 'no-lightbox';
+		}
+		// Image blocks have no inner blocks, so innerContent is the innerHTML as one string.
+		if ( array( $html ) !== $block['innerContent'] ) {
+			return 'unexpected markup';
+		}
+		if ( ! preg_match( '/<img\b[^>]*\bsrc="([^"]+)"[^>]*>/i', $html, $img, PREG_OFFSET_CAPTURE ) ) {
+			return 'no img';
+		}
+
+		$href = self::full_image_url( isset( $block['attrs']['id'] ) ? (int) $block['attrs']['id'] : 0, html_entity_decode( $img[1][0] ) );
+		if ( '' === $href ) {
+			return 'full file unknown';
+		}
+
+		$tag  = $img[0][0];
+		$html = substr_replace( $html, '<a href="' . esc_url( $href ) . '">' . $tag . '</a>', $img[0][1], strlen( $tag ) );
+
+		$block['attrs']['linkDestination'] = 'media';
+		$block['innerHTML']                = $html;
+		$block['innerContent']             = array( $html );
+
+		return array(
+			'block' => $block,
+			'href'  => $href,
+		);
+	}
+
+	/**
+	 * Full-size file of an image, on the public media address: the attachment URL (the "-scaled"
+	 * file for big uploads), or the src without its -WxH size suffix when there is no attachment.
+	 * '' when neither works.
+	 */
+	private static function full_image_url( int $id, string $src ): string {
+		$full = $id ? wp_get_attachment_url( $id ) : false;
+		if ( ! $full ) {
+			$full = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)(?:\?.*)?$/', '$1', $src, 1, $count );
+			if ( ! $count ) {
+				return '';
+			}
+		}
+		return self::public_media_url( $full );
+	}
+
+	/**
+	 * Rewrites a media file URL to the public media address, when one is set: for a headless site
+	 * whose frontend serves the uploads under its own domain. Set it with the constant
+	 * SPOKO_CONTENT_MCP_MEDIA_BASE or the filter spoko_content_mcp_media_base, e.g.
+	 * https://example.com/images. URLs under the uploads base URL, or under a base added with the
+	 * filter spoko_content_mcp_media_aliases (an old media host), are rewritten; anything else is
+	 * returned unchanged. Without a public address URLs stay as WordPress gives them.
+	 */
+	private static function public_media_url( string $url ): string {
+		$public = defined( 'SPOKO_CONTENT_MCP_MEDIA_BASE' ) ? (string) SPOKO_CONTENT_MCP_MEDIA_BASE : '';
+		$public = rtrim( (string) apply_filters( 'spoko_content_mcp_media_base', $public ), '/' );
+		if ( '' === $public ) {
+			return $url;
+		}
+		$bases = (array) apply_filters( 'spoko_content_mcp_media_aliases', array( wp_get_upload_dir()['baseurl'] ) );
+		$rest  = preg_replace( '#^https?:#i', '', $url );
+		foreach ( $bases as $base ) {
+			// Compare without the scheme: the uploads base URL may be stored as http.
+			$base = preg_replace( '#^https?:#i', '', rtrim( (string) $base, '/' ) ) . '/';
+			if ( '/' !== $base && 0 === stripos( $rest, $base ) ) {
+				return $public . '/' . substr( $rest, strlen( $base ) );
+			}
+		}
+		return $url;
+	}
+
+	/**
 	 * Finds the path of the block carrying the move marker.
 	 *
 	 * @return int[]|null
@@ -676,7 +861,7 @@ final class Polo_Blocks_MCP {
 	private static function find_marked( array $blocks, array $prefix ) {
 		foreach ( $blocks as $i => $block ) {
 			$path = array_merge( $prefix, array( $i ) );
-			if ( ! empty( $block['attrs']['__polo_move_target'] ) ) {
+			if ( ! empty( $block['attrs']['__spoko_move_target'] ) ) {
 				return $path;
 			}
 			$found = self::find_marked( $block['innerBlocks'], $path );
@@ -701,11 +886,9 @@ final class Polo_Blocks_MCP {
 			return $post;
 		}
 
-		if ( self::hash( $post->post_content ) !== (string) $input['expected_hash'] ) {
-			return new WP_Error(
-				'stale_hash',
-				'The post changed since it was read. Read it again (get-outline or get-blocks) and retry with the new content_hash.'
-			);
+		$stale = self::check_hash( $post, $input );
+		if ( $stale ) {
+			return $stale;
 		}
 
 		self::$eol2 = false !== strpos( $post->post_content, "\r\n" ) ? "\r\n\r\n" : "\n\n";
@@ -729,13 +912,24 @@ final class Polo_Blocks_MCP {
 			return $blocks;
 		}
 
-		$content  = serialize_blocks( $blocks );
+		return self::save( $post, serialize_blocks( $blocks ), ! empty( $input['dry_run'] ) );
+	}
+
+	/**
+	 * Validates new content and saves it as a normal post update (which keeps a revision).
+	 *
+	 * @param WP_Post $post    Post being edited.
+	 * @param string  $content New serialized content.
+	 * @param bool    $dry_run Validate only.
+	 * @return array|WP_Error
+	 */
+	private static function save( $post, string $content, bool $dry_run ) {
 		$problems = self::find_problems( $content );
 		if ( $problems ) {
 			return new WP_Error( 'invalid_result', 'The edit would break the block structure: ' . implode( ' | ', $problems ) );
 		}
 
-		if ( ! empty( $input['dry_run'] ) ) {
+		if ( $dry_run ) {
 			return array(
 				'dry_run'      => true,
 				'saved'        => false,
@@ -1054,6 +1248,21 @@ final class Polo_Blocks_MCP {
 		return $post;
 	}
 
+	/**
+	 * Refuses a write when the post changed since the caller read it.
+	 *
+	 * @return WP_Error|null
+	 */
+	private static function check_hash( $post, array $input ) {
+		if ( self::hash( $post->post_content ) === (string) $input['expected_hash'] ) {
+			return null;
+		}
+		return new WP_Error(
+			'stale_hash',
+			'The post changed since it was read. Read it again (get-outline or get-blocks) and retry with the new content_hash.'
+		);
+	}
+
 	private static function hash( string $content ): string {
 		return md5( $content );
 	}
@@ -1063,4 +1272,7 @@ final class Polo_Blocks_MCP {
 	}
 }
 
-Polo_Blocks_MCP::init();
+Spoko_Content_MCP::init();
+
+require_once __DIR__ . '/updater.php';
+Spoko_Content_MCP_Updater::init( __FILE__ );
