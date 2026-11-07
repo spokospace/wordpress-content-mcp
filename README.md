@@ -9,6 +9,7 @@
 [![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-21759b)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://www.php.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Made by spoko.space](https://img.shields.io/badge/made%20by-spoko.space-0d87cd)](https://spoko.space)
 
 A WordPress plugin that lets AI agents (Claude, Cursor, any MCP client) read and edit posts and
 their Gutenberg blocks, through the official [MCP Adapter](https://github.com/WordPress/mcp-adapter)
@@ -130,21 +131,35 @@ Tools for the rest of a content workflow, with the same hash, dry-run and revisi
 
 ## Updates and releases
 
-The plugin updates itself from this repo's GitHub releases (`updater.php`), like a plugin from
-wordpress.org: the Plugins screen shows the new version, and with **Enable auto-updates** on,
-WordPress installs it by itself (WP-Cron, about twice a day; **Dashboard → Updates → Check
-again** checks at once). A release counts when its tag is a higher version (`v2.0.1`), it is not
-a draft or a prerelease, and it has the asset `spoko-content-mcp.zip`.
+There are two builds of the same code:
+
+- **GitHub build** (`dist/spoko-content-mcp.zip`, the GitHub release asset) updates itself from
+  this repo's GitHub releases (`updater.php`): the Plugins screen shows the new version, and with
+  **Enable auto-updates** on, WordPress installs it by itself. A release counts when its tag is a
+  higher version (`v2.0.1`), it is not a draft or a prerelease, and it has the asset
+  `spoko-content-mcp.zip`.
+- **WordPress.org build** (`dist/wporg/spoko-content-mcp.zip`) has no `updater.php`, since the
+  plugin directory does not allow plugins to update themselves; WordPress.org delivers its
+  updates. The plugin loads the updater only when the file is there.
 
 Releasing (no CI needed):
 
-1. Bump `Version:` in the plugin header and `VERSION` in the class (the script refuses if they
-   differ), add a changelog entry, merge to `main`.
-2. On `main`, run `bin/release.sh --publish`. It builds `dist/spoko-content-mcp.zip` (top folder
-   `spoko-content-mcp/`) with `git archive` and creates the release `v<version>` with the
-   changelog entry as notes. Without `--publish` it only builds the zip. On Windows, run it from
-   Git Bash: `bash` started from PowerShell may be WSL, whose git sees the checkout as modified
-   and the script refuses.
+1. Bump `Version:` in the plugin header, `VERSION` in the class and `Stable tag` in `readme.txt`
+   (the script refuses if they differ), add changelog entries to `README.md` and `readme.txt`,
+   merge to `main`.
+2. On `main`, run `bin/release.sh --publish`. It builds both zips with `git archive` (top folder
+   `spoko-content-mcp/`) and creates the GitHub release `v<version>` with the changelog entry as
+   notes. Without `--publish` it only builds the zips. On Windows, run it from Git Bash: `bash`
+   started from PowerShell may be WSL, whose git sees the checkout as modified and the script
+   refuses.
+3. WordPress.org (once the plugin is approved): copy the WordPress.org build into the SVN
+   checkout's `trunk/`, copy `trunk/` to `tags/<version>/`, and `svn commit`. The directory
+   assets (banner, icon) are `art/wporg/*.jpg|png` and go to SVN `assets/`; repaint them with
+   `python art/wporg/render.py`.
+
+Before a WordPress.org release, run [Plugin Check](https://wordpress.org/plugins/plugin-check/)
+on the WordPress.org build (`wp plugin check spoko-content-mcp`); 2.0.1 passes with no errors or
+warnings, experimental checks included.
 
 ## Tests
 
@@ -159,27 +174,28 @@ php tests/updater.php
 the given WordPress checkout) with stubs for the rest. `updater.php` checks the updater against
 stubbed GitHub responses. Both exit 0 when everything passes.
 
-## Upgrading from Polo Blocks MCP (1.x)
-
-Version 2.0 renamed the plugin (folder `spoko-content-mcp`), its tools (`spoko-content-*`) and its
-endpoint (`/wp-json/spoko/content`). WordPress sees it as a new plugin:
-
-1. Install and activate Spoko Content MCP, then deactivate and delete Polo Blocks MCP.
-2. Until 3.0 the old endpoint `/wp-json/polo/blocks` serves the same tools, so existing MCP
-   clients stay connected. The tools have the new names (`spoko-content-get-outline`, not
-   `polo-blocks-get-outline`), so tool allowlists and saved prompts need updating either way.
-   Switch clients to `/wp-json/spoko/content` when convenient.
-
 ## Changelog
 
-- **2.0.0**: renamed to Spoko Content MCP (repo `wordpress-content-mcp`, tools `spoko-content-*`,
-  endpoint `spoko/content`; the old `polo/blocks` endpoint stays until 3.0). Updates from GitHub
-  releases (`updater.php`, `bin/release.sh`). The public media address for `link-images` is a
-  setting (`SPOKO_CONTENT_MCP_MEDIA_BASE`, filters) instead of a fixed host. MIT license.
-- **1.2.1**: `link-images` writes links on a fixed public media address.
-- **1.2.0**: `link-images` tool. Write flow split into a shared `save()` step.
-- **1.1.0**: first version in this repo.
+- **2.0.1**: one endpoint only, `/wp-json/spoko/content`.
+- **2.0.0**: first public release. Block tools (`find-posts`, `get-outline`, `get-blocks`,
+  `validate-post`, `find-media`, `replace-block`, `insert-blocks`, `delete-block`, `move-blocks`,
+  `unwrap-block`, `link-images`) at `/wp-json/spoko/content`, a configurable public media address
+  for `link-images` (`SPOKO_CONTENT_MCP_MEDIA_BASE`, filters), updates from GitHub releases. MIT
+  license.
+
+## Made by spoko.space
+
+<a href="https://spoko.space">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="art/spoko-space-logo-dark.svg">
+    <img alt="spoko.space" src="art/spoko-space-logo-light.svg" height="36">
+  </picture>
+</a>
+
+Spoko Content MCP is built and maintained by [spoko.space](https://spoko.space): websites,
+online shops and web apps, headless WordPress included. Questions and ideas are welcome as
+[issues](https://github.com/spokospace/wordpress-content-mcp/issues).
 
 ## License
 
-[MIT](LICENSE) © spoko.space
+[MIT](LICENSE) © [spoko.space](https://spoko.space)

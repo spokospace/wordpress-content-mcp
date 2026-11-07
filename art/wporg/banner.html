@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WordPress.org banner</title>
+<!-- 772x250 CSS px; render.py renders it at scale 1 (banner-772x250) and 2 (banner-1544x500).
+     WordPress.org lays the plugin name over the bottom-left of the banner, so the text stays top-left. -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 772px; height: 250px; overflow: hidden; }
+  body { font-family: Inter, system-ui, sans-serif; background: rgb(3 6 32); color: rgb(247 248 248); position: relative; }
+  .scene { position: absolute; inset: 0; background: url(../cover-backdrop-dark.jpg) right 38% / auto 150% no-repeat; }
+  .fade { position: absolute; inset: 0; background: linear-gradient(90deg, rgb(3 6 32) 0%, rgb(3 6 32 / 85%) 32%, rgb(3 6 32 / 0%) 62%); }
+  .intro { position: absolute; left: 36px; top: 30px; }
+  .eyebrow { font-weight: 700; letter-spacing: .3em; font-size: 10px; color: rgb(229 236 246 / 70%); }
+  h1 { font-size: 46px; line-height: 1; font-weight: 900; letter-spacing: -.04em; margin-top: 12px; white-space: nowrap; }
+  h1 span { background: linear-gradient(90deg, #7dd3fc, #0d87cd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  p { margin-top: 12px; font-size: 14px; line-height: 1.45; color: rgb(229 236 246 / 75%); }
+  p b { color: rgb(247 248 248); font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="scene"></div>
+  <div class="fade"></div>
+  <section class="intro">
+    <div class="eyebrow">WORDPRESS PLUGIN</div>
+    <h1>Content <span>MCP</span></h1>
+    <p>AI agents edit posts <b>block by block</b>,<br>with a hash check and a revision on every save.</p>
+  </section>
+</body>
+</html>

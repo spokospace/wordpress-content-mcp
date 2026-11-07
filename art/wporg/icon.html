@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>WordPress.org icon</title>
+<!-- 128x128 CSS px; rendered at scale 1 (icon-128x128) and 2 (icon-256x256).
+     A document card of grey block bars with one blue block lifted out, on the spoko.space navy. -->
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 128px; height: 128px; overflow: hidden; }
+  body { background: radial-gradient(circle at 70% 30%, #1b3a7a 0%, rgb(3 6 32) 75%); position: relative; }
+  .card { position: absolute; left: 34px; top: 22px; width: 64px; height: 84px; border-radius: 10px; background: #f3f5f8;
+          box-shadow: 0 8px 18px rgb(0 0 0 / 45%); padding: 11px 9px; display: flex; flex-direction: column; gap: 7px; }
+  .bar { height: 7px; border-radius: 4px; background: #a8b0bd; }
+  .bar.head { height: 11px; background: #8d96a5; }
+  .w70 { width: 70%; }
+  .w85 { width: 85%; }
+  .lifted { position: absolute; left: 16px; top: 54px; width: 56px; height: 24px; border-radius: 7px;
+            background: linear-gradient(90deg, #38b6f5, #0d87cd); box-shadow: 0 6px 14px rgb(13 135 205 / 55%);
+            padding: 6px 8px; display: flex; flex-direction: column; gap: 5px; }
+  .lifted i { display: block; height: 4px; border-radius: 2px; background: rgb(255 255 255 / 85%); }
+  .lifted i + i { width: 65%; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="bar head"></div>
+    <div class="bar"></div>
+    <div class="bar w85"></div>
+    <div class="bar" style="visibility:hidden"></div>
+    <div class="bar w70"></div>
+    <div class="bar w85"></div>
+  </div>
+  <div class="lifted"><i></i><i></i></div>
+</body>
+</html>

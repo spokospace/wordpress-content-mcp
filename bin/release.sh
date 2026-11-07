@@ -19,11 +19,21 @@ if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
 	exit 1
 fi
 
-mkdir -p dist
-rm -f dist/spoko-content-mcp.zip
+stable=$(sed -n 's/^Stable tag: *//p' readme.txt | tr -d '\r')
+if [ "$stable" != "$version" ]; then
+	echo "readme.txt Stable tag '$stable' differs from version '$version'." >&2
+	exit 1
+fi
+
+mkdir -p dist/wporg
+rm -f dist/spoko-content-mcp.zip dist/wporg/spoko-content-mcp.zip
+# GitHub build: updates itself from GitHub releases (updater.php).
 git archive --format=zip --prefix=spoko-content-mcp/ -o dist/spoko-content-mcp.zip HEAD \
-	spoko-content-mcp.php updater.php README.md LICENSE
-echo "Built dist/spoko-content-mcp.zip: $version at $(git rev-parse --short HEAD)"
+	spoko-content-mcp.php updater.php readme.txt README.md LICENSE
+# WordPress.org build: no updater (the directory forbids self-updates), readme.txt as the page.
+git archive --format=zip --prefix=spoko-content-mcp/ -o dist/wporg/spoko-content-mcp.zip HEAD \
+	spoko-content-mcp.php readme.txt LICENSE
+echo "Built dist/spoko-content-mcp.zip and dist/wporg/spoko-content-mcp.zip: $version at $(git rev-parse --short HEAD)"
 
 [ "${1:-}" = "--publish" ] || exit 0
 
