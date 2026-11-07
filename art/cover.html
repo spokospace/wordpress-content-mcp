@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>README cover</title>
+<!--
+  Template. Copy next to the backdrops (cover-backdrop-light.jpg / cover-backdrop-dark.jpg), edit
+  the three texts in <body> and the accent colours below, then run render.py on this file.
+  1600x900 CSS px; render.py renders it at device scale 2. ?theme=dark gives the dark variant.
+  Keep the title in the top-left quarter: that is where backdrop.py keeps the picture empty.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #fbfaf7; --glow: rgba(16,185,129,.16);
+    --ink: #0f172a; --muted: #475569; --chip-bg: #fff; --chip-border: #e2e8f0;
+    --accent: #059669; --accent-2: #10b981;
+  }
+  .dark {
+    --bg: #0b0f16; --glow: rgba(16,185,129,.16);
+    --ink: #f1f5f9; --muted: #a3b1c2; --chip-bg: #121926; --chip-border: #1f2a3a;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1600px; height: 900px; overflow: hidden; }
+  body { font-family: Inter, system-ui, sans-serif; color: var(--ink); background: var(--bg); position: relative; }
+  .backdrop { position: absolute; inset: 0; background: url(cover-backdrop-light.jpg) center / cover; }
+  .dark .backdrop { background-image: url(cover-backdrop-dark.jpg); }
+  .intro { position: absolute; left: 96px; top: 96px; width: 760px; }
+  .eyebrow { display: flex; align-items: center; gap: 14px; font-weight: 700; letter-spacing: .32em; font-size: 20px; color: var(--muted); }
+  .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 6px var(--glow); }
+  h1 { font-size: 128px; line-height: 1; font-weight: 900; letter-spacing: -.04em; margin-top: 30px; white-space: nowrap; }
+  /* The second word carries the gradient. On a coloured dark backdrop use lighter stops, or it vanishes. */
+  h1 .bottom { background: linear-gradient(90deg, #10b981, #0e7490); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .dark h1 .bottom { background-image: linear-gradient(90deg, #6ee7b7, #22d3ee); }
+  .tagline { margin-top: 30px; font-size: 30px; line-height: 1.45; color: var(--muted); text-wrap: balance; }
+  .tagline strong { color: var(--ink); font-weight: 700; }
+  /* Optional extras; only add them if the backdrop leaves room (they ran into the scene before). */
+  .chips { display: flex; gap: 16px; margin-top: 44px; }
+  .chip { background: var(--chip-bg); border: 1px solid var(--chip-border); border-radius: 999px; padding: 12px 24px; font-weight: 600; font-size: 20px; }
+  .chip i { color: var(--accent); font-style: normal; margin-right: 10px; }
+  .install { margin-top: 44px; font-family: "JetBrains Mono", monospace; font-size: 24px; color: var(--muted); }
+  .install b { color: var(--accent); margin-right: 14px; font-weight: 500; }
+</style>
+</head>
+<body>
+  <div class="backdrop"></div>
+  <section class="intro">
+    <div class="eyebrow"><span class="dot"></span>SPOKO · WORDPRESS PLUGIN</div>
+    <h1><span class="top">Content</span> <span class="bottom">MCP</span></h1>
+    <p class="tagline">AI agents edit WordPress posts<br><strong>block by block</strong>, with a hash check<br>and a revision on every save.</p>
+  </section>
+<script>
+  if (new URLSearchParams(location.search).get('theme') === 'dark') document.documentElement.classList.add('dark');
+</script>
+</body>
+</html>
