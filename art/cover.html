@@ -13,14 +13,15 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
+  /* spoko.space palette: brand blue #0d87cd, navy page rgb(3 6 32), heading ink rgb(247 248 248). */
   :root {
-    --bg: #fbfaf7; --glow: rgba(16,185,129,.16);
-    --ink: #0f172a; --muted: #475569; --chip-bg: #fff; --chip-border: #e2e8f0;
-    --accent: #059669; --accent-2: #10b981;
+    --bg: #eef5fb; --glow: rgba(13,135,205,.16);
+    --ink: #030620; --muted: #3d4a63; --chip-bg: #fff; --chip-border: #c9d7e6;
+    --accent: #0a6ca4; --accent-2: #0d87cd;
   }
   .dark {
-    --bg: #0b0f16; --glow: rgba(16,185,129,.16);
-    --ink: #f1f5f9; --muted: #a3b1c2; --chip-bg: #121926; --chip-border: #1f2a3a;
+    --bg: rgb(3 6 32); --glow: rgba(13,135,205,.22);
+    --ink: rgb(247 248 248); --muted: rgb(229 236 246 / 70%); --chip-bg: #0d1733; --chip-border: #1d2a4d;
   }
   * { box-sizing: border-box; margin: 0; }
   html, body { width: 1600px; height: 900px; overflow: hidden; }
@@ -29,7 +30,6 @@
   .dark .backdrop { background-image: url(cover-backdrop-dark.jpg); }
   .intro { position: absolute; left: 96px; top: 96px; width: 760px; }
   .eyebrow { display: flex; align-items: center; gap: 14px; font-weight: 700; letter-spacing: .32em; font-size: 20px; color: var(--muted); }
-  .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 6px var(--glow); }
   /* Bottom-left: what it is built for and who made it. */
   .brands { position: absolute; left: 96px; bottom: 96px; display: flex; align-items: center; gap: 28px; color: var(--ink); }
   .brand { display: flex; align-items: center; gap: 16px; font-size: 30px; font-weight: 700; letter-spacing: -.01em; }
@@ -41,10 +41,10 @@
   .dark .sep { background: rgba(255,255,255,.18); }
   /* spoko.space logo (spoko.space repo, src/assets/images/logo.svg); currentColor follows the theme. */
   .spoko { height: 40px; width: auto; display: block; }
-  h1 { font-size: 128px; line-height: 1; font-weight: 900; letter-spacing: -.04em; margin-top: 30px; white-space: nowrap; }
+  h1 { font-size: 112px; line-height: 1; font-weight: 900; letter-spacing: -.04em; margin-top: 30px; white-space: nowrap; }
   /* The second word carries the gradient. On a coloured dark backdrop use lighter stops, or it vanishes. */
-  h1 .bottom { background: linear-gradient(90deg, #10b981, #0e7490); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .dark h1 .bottom { background-image: linear-gradient(90deg, #6ee7b7, #22d3ee); }
+  h1 .bottom { background: linear-gradient(90deg, #0d87cd, #0a4f8a); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .dark h1 .bottom { background-image: linear-gradient(90deg, #7dd3fc, #0d87cd); }
   .tagline { margin-top: 30px; font-size: 30px; line-height: 1.45; color: var(--muted); text-wrap: balance; }
   .tagline strong { color: var(--ink); font-weight: 700; }
   /* Optional extras; only add them if the backdrop leaves room (they ran into the scene before). */
@@ -58,7 +58,7 @@
 <body>
   <div class="backdrop"></div>
   <section class="intro">
-    <div class="eyebrow"><span class="dot"></span>WORDPRESS PLUGIN</div>
+    <div class="eyebrow">WORDPRESS PLUGIN</div>
     <h1><span class="top">Content</span> <span class="bottom">MCP</span></h1>
     <p class="tagline">AI agents edit WordPress posts<br><strong>block by block</strong>, with a hash check<br>and a revision on every save.</p>
   </section>
