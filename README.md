@@ -96,6 +96,8 @@ day; **Dashboard → Updates → Check again** checks at once).
   2. On `main`: `bin/release.sh --publish`. It builds `dist/polo-blocks-mcp.zip` (top folder
      `polo-blocks-mcp/`) with `git archive` and creates release `v<version>` with the changelog
      entry as notes. Without `--publish` it only builds the zip, e.g. for a manual upload.
+     On Windows run it from Git Bash: `bash` from PowerShell may be WSL, whose git sees the
+     checkout as modified (line endings) and the script refuses.
 - New tools reach MCP clients only after the client reloads its tool list (see the blog repo's
   CLAUDE.md).
 
