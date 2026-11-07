@@ -9,6 +9,7 @@
 [![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-21759b)](https://wordpress.org)
 [![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://www.php.net)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Made by spoko.space](https://img.shields.io/badge/made%20by-spoko.space-0d87cd)](https://spoko.space)
 
 A WordPress plugin that lets AI agents (Claude, Cursor, any MCP client) read and edit posts and
 their Gutenberg blocks, through the official [MCP Adapter](https://github.com/WordPress/mcp-adapter)
@@ -180,6 +181,20 @@ endpoint (`/wp-json/spoko/content`). WordPress sees it as a new plugin:
 - **1.2.0**: `link-images` tool. Write flow split into a shared `save()` step.
 - **1.1.0**: first version in this repo.
 
+## Made by spoko.space
+
+<a href="https://spoko.space">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="art/spoko-space-logo-dark.svg">
+    <img alt="spoko.space" src="art/spoko-space-logo-light.svg" height="36">
+  </picture>
+</a>
+
+Spoko Content MCP is built and maintained by [spoko.space](https://spoko.space): websites,
+online shops and web apps, headless WordPress included. It edits the content of
+[blog.polo.blue](https://blog.polo.blue). Questions and ideas are welcome as
+[issues](https://github.com/spokospace/wordpress-content-mcp/issues).
+
 ## License
 
-[MIT](LICENSE) © spoko.space
+[MIT](LICENSE) © [spoko.space](https://spoko.space)
