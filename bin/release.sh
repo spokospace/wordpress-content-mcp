@@ -14,6 +14,7 @@ if [ -z "$version" ] || [ "$version" != "$const" ]; then
 	echo "Version header '$version' and VERSION '$const' differ." >&2
 	exit 1
 fi
+git update-index -q --refresh || true
 if ! git diff --quiet HEAD; then
 	echo "Uncommitted changes; the zip is built from HEAD." >&2
 	exit 1
