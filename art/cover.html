@@ -29,7 +29,10 @@
   .dark .backdrop { background-image: url(cover-backdrop-dark.jpg); }
   .intro { position: absolute; left: 96px; top: 96px; width: 760px; }
   .eyebrow { display: flex; align-items: center; gap: 14px; font-weight: 700; letter-spacing: .32em; font-size: 20px; color: var(--muted); }
-  .dot { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-2); box-shadow: 0 0 0 6px var(--glow); }
+  .eyebrow { gap: 18px; }
+  /* WordPress logo (Wikimedia Commons, WordPress_blue_logo.svg). On dark it sits on a white disc so the blue mark stays readable. */
+  .wp { width: 56px; height: 56px; border-radius: 50%; display: block; }
+  .dark .wp { background: #fff; box-shadow: 0 0 0 6px rgba(255,255,255,.12); }
   h1 { font-size: 128px; line-height: 1; font-weight: 900; letter-spacing: -.04em; margin-top: 30px; white-space: nowrap; }
   /* The second word carries the gradient. On a coloured dark backdrop use lighter stops, or it vanishes. */
   h1 .bottom { background: linear-gradient(90deg, #10b981, #0e7490); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -47,7 +50,7 @@
 <body>
   <div class="backdrop"></div>
   <section class="intro">
-    <div class="eyebrow"><span class="dot"></span>SPOKO · WORDPRESS PLUGIN</div>
+    <div class="eyebrow"><img class="wp" src="wordpress-logo.svg" alt="">SPOKO · WORDPRESS PLUGIN</div>
     <h1><span class="top">Content</span> <span class="bottom">MCP</span></h1>
     <p class="tagline">AI agents edit WordPress posts<br><strong>block by block</strong>, with a hash check<br>and a revision on every save.</p>
   </section>
