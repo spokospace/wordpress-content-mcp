@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       Polo Blocks MCP
  * Description:       Block-level editing abilities for Gutenberg posts, exposed to AI agents through the MCP Adapter.
- * Version:           1.2.1
+ * Version:           1.3.0
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -21,6 +21,11 @@ defined( 'ABSPATH' ) || exit;
 final class Polo_Blocks_MCP {
 
 	const CATEGORY = 'polo-blocks';
+
+	/**
+	 * Must match the Version header; bin/release.sh checks both against the tag.
+	 */
+	const VERSION = '1.3.0';
 
 	/**
 	 * Public address of the media library: link-images writes links to it.
@@ -69,7 +74,7 @@ final class Polo_Blocks_MCP {
 			'blocks',
 			'Polo Blocks',
 			'Read and edit Gutenberg blocks of polo.blue posts.',
-			'1.2.1',
+			self::VERSION,
 			array( \WP\MCP\Transport\HttpTransport::class ),
 			\WP\MCP\Infrastructure\ErrorHandling\ErrorLogMcpErrorHandler::class,
 			null,
@@ -1251,3 +1256,6 @@ final class Polo_Blocks_MCP {
 }
 
 Polo_Blocks_MCP::init();
+
+require_once __DIR__ . '/updater.php';
+Polo_Blocks_MCP_Updater::init( __FILE__ );

@@ -14,6 +14,7 @@ function wp_slash( $s ) { return $s; }
 function current_user_can() { return true; }
 function _deprecated_function() {}
 function wp_json_encode( $d, $o = 0 ) { return json_encode( $d, $o ); }
+function plugin_basename( $f ) { return 'polo-blocks-mcp/polo-blocks-mcp.php'; }
 class WP_Error { public $code; public $message; function __construct( $c, $m ) { $this->code = $c; $this->message = $m; } }
 class WP_Post { public $ID; public $post_type = 'post'; public $post_content; }
 require ABSPATH . WPINC . '/class-wp-block-parser-block.php';

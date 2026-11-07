@@ -78,6 +78,27 @@ Out of scope: images that are not `core/image` blocks, such as images in tables,
 
 After content changes, polo.blue (static) has to be rebuilt before they show there.
 
+## Updates and releases
+
+Since 1.3.0 the plugin updates itself from the GitHub releases of this repo (`updater.php`), like
+a plugin from wordpress.org: the Plugins screen shows the new version, and with **Enable
+auto-updates** turned on for the plugin WordPress installs it on its own (WP-Cron, about twice a
+day; **Dashboard → Updates → Check again** checks at once).
+
+- A release counts when its tag is a higher version (`v1.3.1`), it is not a draft or prerelease,
+  and it has the asset `polo-blocks-mcp.zip`.
+- **Private repo:** WordPress needs a token. Put a fine-grained GitHub token with read-only
+  **Contents** on `spokospace/spoko-blocks-mcp` in `wp-config.php`:
+  `define( 'POLO_BLOCKS_MCP_GITHUB_TOKEN', '…' );`. A public repo needs none.
+- Releases come from `bin/release.sh`, not from GitHub Actions:
+  1. Bump `Version:` in the header and `VERSION` in the class (the script refuses if they
+     differ), add a changelog entry, merge to `main`.
+  2. On `main`: `bin/release.sh --publish`. It builds `dist/polo-blocks-mcp.zip` (top folder
+     `polo-blocks-mcp/`) with `git archive` and creates release `v<version>` with the changelog
+     entry as notes. Without `--publish` it only builds the zip, e.g. for a manual upload.
+- New tools reach MCP clients only after the client reloads its tool list (see the blog repo's
+  CLAUDE.md).
+
 ## Tests
 
 `tests/link-images.php` runs `link-images` against WordPress's real block parser and serializer
@@ -89,8 +110,16 @@ php tests/link-images.php /path/to/wordpress polo-blocks-mcp.php
 
 It ends with `ALL PASS` (exit 0) or `FAILURES` (exit 1).
 
+`tests/updater.php` checks the updater against stubbed WordPress and GitHub responses (newer,
+same and older release, API errors, private-repo download):
+
+```bash
+php tests/updater.php
+```
+
 ## Changelog
 
+- **1.3.0**: updates from GitHub releases (`updater.php`), `bin/release.sh`.
 - **1.2.1**: `link-images` writes links on the public address `https://polo.blue/images/…` instead of
   `blog.polo.blue` / `img.polo.blue`.
 - **1.2.0**: `link-images` tool. Write flow split into a shared `save()` step.
