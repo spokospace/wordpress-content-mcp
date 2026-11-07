@@ -1,9 +1,10 @@
 <?php
-// Harness for Polo_Blocks_MCP::link_images using WordPress's real block parser/serializer.
+// Harness for Spoko_Content_MCP::link_images using WordPress's real block parser/serializer.
 // argv[1] = WordPress root, argv[2] = plugin file.
 define( 'ABSPATH', $argv[1] . '/' );
 define( 'WPINC', 'wp-includes' );
-function apply_filters( $tag, $value ) { return $value; }
+$GLOBALS['filters'] = array();
+function apply_filters( $tag, $value ) { return isset( $GLOBALS['filters'][ $tag ] ) ? $GLOBALS['filters'][ $tag ]( $value ) : $value; }
 function add_action() {}
 function add_filter() {}
 function do_action() {}
@@ -14,7 +15,7 @@ function wp_slash( $s ) { return $s; }
 function current_user_can() { return true; }
 function _deprecated_function() {}
 function wp_json_encode( $d, $o = 0 ) { return json_encode( $d, $o ); }
-function plugin_basename( $f ) { return 'polo-blocks-mcp/polo-blocks-mcp.php'; }
+function plugin_basename( $f ) { return 'spoko-content-mcp/spoko-content-mcp.php'; }
 class WP_Error { public $code; public $message; function __construct( $c, $m ) { $this->code = $c; $this->message = $m; } }
 class WP_Post { public $ID; public $post_type = 'post'; public $post_content; }
 require ABSPATH . WPINC . '/class-wp-block-parser-block.php';
@@ -33,6 +34,10 @@ function wp_get_attachment_url( $id ) { return 24399 === $id ? false : "https://
 function wp_get_upload_dir() { return array( 'baseurl' => 'http://blog.polo.blue/images' ); }
 
 require $argv[2];
+
+// blog.polo.blue's setup: public address polo.blue/images, old media host img.polo.blue.
+$GLOBALS['filters']['spoko_content_mcp_media_base']    = function () { return 'https://polo.blue/images/'; };
+$GLOBALS['filters']['spoko_content_mcp_media_aliases'] = function ( $bases ) { return array_merge( $bases, array( 'https://img.polo.blue' ) ); };
 
 function img( $id, $attrs, $inner ) {
 	$json = json_encode( array_merge( $id ? array( 'id' => $id ) : array(), array( 'sizeSlug' => 'large' ), $attrs ) );
@@ -75,11 +80,11 @@ $ok = true;
 function check( $label, $cond ) { global $ok; $ok = $ok && $cond; echo ( $cond ? 'PASS ' : 'FAIL ' ), $label, "\n"; }
 
 // 1. stale hash refused
-$r = Polo_Blocks_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => 'nope' ) );
+$r = Spoko_Content_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => 'nope' ) );
 check( 'stale hash refused', is_wp_error( $r ) && 'stale_hash' === $r->code );
 
 // 2. dry run: reports, does not save
-$r = Polo_Blocks_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash, 'dry_run' => true ) );
+$r = Spoko_Content_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash, 'dry_run' => true ) );
 echo json_encode( array( 'linked' => $r['linked'], 'skipped' => $r['skipped'] ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ), "\n";
 check( 'dry run does not save', ! $GLOBALS['saved'] && $GLOBALS['posts'][1]->post_content === $content && true === $r['dry_run'] );
 check( 'dry run links 7 images', 7 === count( $r['linked'] ) );
@@ -87,7 +92,7 @@ check( 'linked paths', array( '2.0', '2.2', '4.0.0.0', '8', '12', '14', '16' ) =
 check( 'skips opt-out and unknown file', array( array( 'path' => '6', 'reason' => 'no-lightbox' ), array( 'path' => '10', 'reason' => 'full file unknown' ) ) === $r['skipped'] );
 
 // 3. real save
-$r   = Polo_Blocks_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash ) );
+$r   = Spoko_Content_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash ) );
 $new = $GLOBALS['posts'][1]->post_content;
 check( 'saved once', array( 1 ) === $GLOBALS['saved'] && true === $r['saved'] && md5( $new ) === $r['content_hash'] );
 check( 'href = attachment file on the public address', false !== strpos( $new, '<a href="https://polo.blue/images/2021/06/att-24412-scaled.jpg"><img src="' . sprintf( $src, 1 ) . '"' ) );
@@ -105,8 +110,19 @@ check( 'everything outside images byte-identical', preg_replace( '#<a href="[^"]
 
 // 4. idempotent: second run links nothing and does not save
 $GLOBALS['saved'] = array();
-$r = Polo_Blocks_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => md5( $new ) ) );
+$r = Spoko_Content_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => md5( $new ) ) );
 check( 'second run is a no-op', ! $r['linked'] && false === $r['saved'] && ! $GLOBALS['saved'] );
+
+// 5. public address is optional: without it URLs stay as WordPress gives them
+$public = new ReflectionMethod( 'Spoko_Content_MCP', 'public_media_url' );
+if ( PHP_VERSION_ID < 80100 ) {
+	$public->setAccessible( true );
+}
+check( 'with base: uploads URL rewritten', 'https://polo.blue/images/2021/06/a.jpg' === $public->invoke( null, 'https://blog.polo.blue/images/2021/06/a.jpg' ) );
+check( 'with base: foreign host unchanged', 'https://cdn.example.com/a.jpg' === $public->invoke( null, 'https://cdn.example.com/a.jpg' ) );
+$GLOBALS['filters']['spoko_content_mcp_media_base'] = function () { return ''; };
+check( 'no base: uploads URL unchanged', 'https://blog.polo.blue/images/2021/06/a.jpg' === $public->invoke( null, 'https://blog.polo.blue/images/2021/06/a.jpg' ) );
+check( 'no base: old host unchanged', 'https://img.polo.blue/2021/06/a.jpg' === $public->invoke( null, 'https://img.polo.blue/2021/06/a.jpg' ) );
 
 echo $ok ? "\nALL PASS\n" : "\nFAILURES\n";
 exit( $ok ? 0 : 1 );

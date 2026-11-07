@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Builds dist/polo-blocks-mcp.zip from the committed HEAD.
+# Builds dist/spoko-content-mcp.zip from the committed HEAD.
 # With --publish (on main, in sync with origin) it also creates the GitHub release v<version>
-# with that zip; blog.polo.blue picks it up through updater.php.
+# with that zip; sites pick it up through updater.php.
 #
 #   bin/release.sh            # build only
 #   bin/release.sh --publish  # build and release
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-version=$(sed -n 's/^ \* Version: *//p' polo-blocks-mcp.php | tr -d '\r')
-const=$(sed -n "s/^[[:space:]]*const VERSION = '\(.*\)';.*/\1/p" polo-blocks-mcp.php | tr -d '\r')
+version=$(sed -n 's/^ \* Version: *//p' spoko-content-mcp.php | tr -d '\r')
+const=$(sed -n "s/^[[:space:]]*const VERSION = '\(.*\)';.*/\1/p" spoko-content-mcp.php | tr -d '\r')
 if [ -z "$version" ] || [ "$version" != "$const" ]; then
 	echo "Version header '$version' and VERSION '$const' differ." >&2
 	exit 1
@@ -20,10 +20,10 @@ if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
 fi
 
 mkdir -p dist
-rm -f dist/polo-blocks-mcp.zip
-git archive --format=zip --prefix=polo-blocks-mcp/ -o dist/polo-blocks-mcp.zip HEAD \
-	polo-blocks-mcp.php updater.php README.md
-echo "Built dist/polo-blocks-mcp.zip: $version at $(git rev-parse --short HEAD)"
+rm -f dist/spoko-content-mcp.zip
+git archive --format=zip --prefix=spoko-content-mcp/ -o dist/spoko-content-mcp.zip HEAD \
+	spoko-content-mcp.php updater.php README.md LICENSE
+echo "Built dist/spoko-content-mcp.zip: $version at $(git rev-parse --short HEAD)"
 
 [ "${1:-}" = "--publish" ] || exit 0
 
@@ -48,5 +48,5 @@ notes=$(awk -v v="$version" '
 	on && /^$/ { exit }
 	on { print }
 ' README.md)
-gh release create "v$version" dist/polo-blocks-mcp.zip \
-	--target "$(git rev-parse HEAD)" --title "$version" --notes "${notes:-Polo Blocks MCP $version}"
+gh release create "v$version" dist/spoko-content-mcp.zip \
+	--target "$(git rev-parse HEAD)" --title "$version" --notes "${notes:-Spoko Content MCP $version}"

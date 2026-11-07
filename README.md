@@ -1,128 +1,185 @@
-# spoko-blocks-mcp
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="art/cover-dark.jpg">
+  <img alt="Spoko Content MCP: AI agents read and edit WordPress posts block by block, with a hash check and a revision on every save" src="art/cover-light.jpg">
+</picture>
 
-WordPress plugin **Polo Blocks MCP** (`polo-blocks-mcp.php`). Lets AI agents read and edit the
-Gutenberg blocks of posts and pages through the [MCP Adapter](https://github.com/WordPress/mcp-adapter)
-(WordPress Abilities API).
+# Spoko Content MCP
 
-## Where it runs
+[![Latest release](https://img.shields.io/github/v/release/spokospace/wordpress-content-mcp)](https://github.com/spokospace/wordpress-content-mcp/releases)
+[![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-21759b)](https://wordpress.org)
+[![PHP](https://img.shields.io/badge/PHP-7.4%2B-777bb4)](https://www.php.net)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-- **Site:** blog.polo.blue (Plugins screen: "Polo Blocks MCP").
-- **The plugin is not in the `polo-blue/blog.polo.blue` repo.** That repo has no copy of
-  this plugin; this repo is the only source.
-- **Endpoint:** `/wp-json/polo/blocks` (MCP server `polo-blocks`). MCP clients show the tools as
-  `polo-blocks-<name>`, e.g. `polo-blocks-get-outline`.
-- **Requires:** WordPress 6.9+, PHP 7.4+, the `mcp-adapter` plugin.
-- **Permissions:** the logged-in user's own WordPress capabilities (`edit_post` for the post,
-  `upload_files` for find-media).
+A WordPress plugin that lets AI agents (Claude, Cursor, any MCP client) read and edit posts and
+their Gutenberg blocks, through the official [MCP Adapter](https://github.com/WordPress/mcp-adapter)
+and the [Abilities API](https://make.wordpress.org/core/2025/11/10/abilities-api-in-wordpress-6-9/).
 
-## How it works
+An agent that rewrites a whole post to change one paragraph can break blocks it never meant to
+touch, or overwrite an edit someone made a minute ago. This plugin gives it smaller, safer steps:
 
-- A block is addressed by its **path**: indexes into the parsed block tree joined with dots.
-  `12` is the 13th top-level block, `12.0.3` the 4th inner block of its 1st inner block. Blank
-  separators between blocks take up an index too, so top-level blocks are usually 0, 2, 4…
-  Get paths from `get-outline`.
-- **Every write needs `expected_hash`**, the `content_hash` from the latest read. If the post
-  changed in the meantime, the write is refused (`stale_hash`), so a stale edit never
-  overwrites newer changes.
-- **Every write takes `dry_run`**: validate and return the result without saving.
-- **Every write is a normal post update**, so WordPress keeps a revision (returned as
-  `revision_id`) that can be restored from the editor. This is the backup.
-- Before saving, the new content is checked for broken block structure (unbalanced block
-  comments, stray HTML between blocks). If the check fails, nothing is saved.
+- **Edit one block, not the whole post.** Blocks are addressed by a path (`12.0.3`), so a change
+  replaces, inserts, moves or deletes exactly that block and leaves the rest byte for byte.
+- **No lost edits.** Every read returns a `content_hash`; every write needs it. If the post changed
+  in the meantime, the write is refused.
+- **Look before you save.** Every write takes `dry_run`.
+- **Always a way back.** Every save is a normal post update with a revision (`revision_id`).
+- **Valid blocks only.** Before saving, the content is checked for broken block structure; if the
+  check fails, nothing is saved.
+
+## Requirements
+
+- WordPress 6.9+ (Abilities API in core), PHP 7.4+
+- The [MCP Adapter](https://github.com/WordPress/mcp-adapter) plugin
+- A WordPress user for the agent (an application password). The tools run with that user's own
+  capabilities: `edit_post` for the post, `upload_files` for `find-media`.
+
+## Install
+
+1. Download `spoko-content-mcp.zip` from the [latest release](https://github.com/spokospace/wordpress-content-mcp/releases/latest).
+2. **Plugins → Add New → Upload Plugin**, activate it.
+3. Turn on **Enable auto-updates** for it: new releases install themselves (see
+   [Updates](#updates-and-releases)).
+4. Point your MCP client at `https://your-site/wp-json/spoko/content`, e.g. with
+   [`@automattic/mcp-wordpress-remote`](https://www.npmjs.com/package/@automattic/mcp-wordpress-remote):
+
+```json
+{
+  "mcpServers": {
+    "spoko-content": {
+      "command": "npx",
+      "args": ["-y", "@automattic/mcp-wordpress-remote@latest"],
+      "env": {
+        "WP_API_URL": "https://your-site/wp-json/spoko/content",
+        "WP_API_USERNAME": "agent-user",
+        "WP_API_PASSWORD": "application password"
+      }
+    }
+  }
+}
+```
+
+MCP clients list the tools as `spoko-content-<name>`, e.g. `spoko-content-get-outline`. Most
+clients read the tool list once when they start, so restart the client after an update that adds
+tools.
 
 ## Tools
 
 | Tool | Writes | What it does |
 |---|---|---|
-| `find-posts` | no | Search posts/pages by title text, slug or ID. |
+| `find-posts` | no | Search posts and pages by title text, slug or ID. |
 | `get-outline` | no | Block tree with paths, names and text previews, plus `content_hash`. |
 | `get-blocks` | no | Serialized markup of blocks by path, plus `content_hash`. |
 | `validate-post` | no | Report broken block structure. |
-| `find-media` | no | Search the media library; IDs, URLs, image sizes. |
+| `find-media` | no | Search the media library: IDs, URLs, image sizes. |
 | `replace-block` | yes | Replace the block at a path with new markup. |
-| `insert-blocks` | yes | Insert blocks before/after a path. |
+| `insert-blocks` | yes | Insert blocks before or after a path. |
 | `delete-block` | yes | Delete the block at a path. |
 | `move-blocks` | yes | Move consecutive sibling blocks next to another block, markup unchanged. |
-| `unwrap-block` | yes | Replace a container (e.g. group) with its inner blocks. |
-| `link-images` | yes | Link every unlinked image of a post to its full-size file (since 1.2.0). |
+| `unwrap-block` | yes | Replace a container (e.g. a group) with its inner blocks. |
+| `link-images` | yes | Link every unlinked image of a post to its full-size file. |
+
+A block's **path** is its index in the parsed block tree, joined with dots: `12` is the 13th
+top-level block, `12.0.3` the 4th inner block of its 1st inner block. Blank separators between
+blocks take an index too, so top-level blocks are usually 0, 2, 4… Get paths from `get-outline`.
+
+Typical edit:
+
+1. `get-outline` → paths and `content_hash`.
+2. The write tool with `expected_hash` and `dry_run: true` → check the result.
+3. The same call without `dry_run` → saved; `revision_id` is the backup.
 
 ### link-images
 
-Written for the lightbox on polo.blue, which only opens images that have a link
-(`.wp-block-image a[href]`, `.wp-block-gallery a[href]`). Images added with "Link to: None"
-have no `<a>`, so the lightbox skips them.
+Lightboxes usually open only images that have a link (`<a href>` around the `<img>`). Images
+added with "Link to: None" have none, so the lightbox skips them. For every `core/image` block in
+the post, galleries and columns included, `link-images`:
 
-For every `core/image` block in the post, galleries and columns included:
+- **links it** the way the editor does for "Link to: Media file": `linkDestination: "media"` and
+  `<a href="…">` around the `<img>`. The file is the attachment's full URL (the `-scaled` file for
+  big uploads); without an attachment, the `src` without its `-WxH` size suffix;
+- **leaves it alone** when it already has a link outside the caption (never a double `<a>`);
+- **skips it**, with a reason in `skipped`, when the figure has the class `no-lightbox` (the
+  opt-out), the full file cannot be told, or the markup is unexpected.
 
-- **Links it:** sets `linkDestination: "media"` and wraps the `<img>` in `<a href="…">`, the same
-  markup the editor saves for "Link to: Media file". The file is `wp_get_attachment_url()` of
-  the block's `id`, which for large uploads is the `-scaled` file. If there is no attachment, it
-  uses the `src` without its `-WxH` size suffix.
-- **Public address, no subdomain:** the `href` is always `https://polo.blue/images/YYYY/MM/<file>`
-  (`PUBLIC_MEDIA_BASE`). URLs under the uploads base URL (`https://blog.polo.blue/images`) and the
-  old `https://img.polo.blue` host are rewritten to it; other hosts are left as they are.
-- **Leaves it alone** when it already has a link outside the caption (never a double `<a>`).
-- **Skips it** with a reason in `skipped`: `no-lightbox` (the figure has that class; this is the
-  opt-out), `full file unknown` (no attachment and no size suffix), `unexpected markup`, `no img`.
-- Changes nothing else in the post. Running it again on a post that is already done saves
-  nothing.
+Nothing else in the post changes, and a second run saves nothing. Images outside `core/image`
+blocks (tables, classic content, `core/html`) are out of scope.
 
-Typical use:
+**Headless sites:** if the frontend serves the uploads under its own address, set it, and links
+point there instead of at WordPress:
 
-1. `get-outline` → `content_hash`.
-2. `link-images` with `dry_run: true` → check `linked` (path and href) and `skipped`.
-3. `link-images` with the same `expected_hash` → saved, `revision_id` is the backup.
+```php
+// wp-config.php
+define( 'SPOKO_CONTENT_MCP_MEDIA_BASE', 'https://example.com/images' );
 
-Out of scope: images that are not `core/image` blocks, such as images in tables, in classic
-(freeform) content or in `core/html`.
+// or in code, plus old media hosts to rewrite as well:
+add_filter( 'spoko_content_mcp_media_base', fn () => 'https://example.com/images' );
+add_filter( 'spoko_content_mcp_media_aliases', fn ( array $bases ) => [ ...$bases, 'https://img.example.com' ] );
+```
 
-After content changes, polo.blue (static) has to be rebuilt before they show there.
+URLs under the uploads base URL (and under the aliases) are rewritten; other hosts are left as
+they are. Without a media base, links use the URLs WordPress gives.
+
+## Roadmap
+
+Tools for the rest of a content workflow, with the same hash, dry-run and revision rules:
+
+- creating and updating posts and pages, moving them to the trash;
+- categories and tags;
+- [Polylang](https://wordpress.org/plugins/polylang/) translations: pairing posts as translations
+  of each other (only when Polylang is active).
 
 ## Updates and releases
 
-Since 1.3.0 the plugin updates itself from the GitHub releases of this repo (`updater.php`), like
-a plugin from wordpress.org: the Plugins screen shows the new version, and with **Enable
-auto-updates** turned on for the plugin WordPress installs it on its own (WP-Cron, about twice a
-day; **Dashboard → Updates → Check again** checks at once).
+The plugin updates itself from this repo's GitHub releases (`updater.php`), like a plugin from
+wordpress.org: the Plugins screen shows the new version, and with **Enable auto-updates** on,
+WordPress installs it by itself (WP-Cron, about twice a day; **Dashboard → Updates → Check
+again** checks at once). A release counts when its tag is a higher version (`v2.0.1`), it is not
+a draft or a prerelease, and it has the asset `spoko-content-mcp.zip`.
 
-- A release counts when its tag is a higher version (`v1.3.1`), it is not a draft or prerelease,
-  and it has the asset `polo-blocks-mcp.zip`.
-- **Private repo:** WordPress needs a token. Put a fine-grained GitHub token with read-only
-  **Contents** on `spokospace/spoko-blocks-mcp` in `wp-config.php`:
-  `define( 'POLO_BLOCKS_MCP_GITHUB_TOKEN', '…' );`. A public repo needs none.
-- Releases come from `bin/release.sh`, not from GitHub Actions:
-  1. Bump `Version:` in the header and `VERSION` in the class (the script refuses if they
-     differ), add a changelog entry, merge to `main`.
-  2. On `main`: `bin/release.sh --publish`. It builds `dist/polo-blocks-mcp.zip` (top folder
-     `polo-blocks-mcp/`) with `git archive` and creates release `v<version>` with the changelog
-     entry as notes. Without `--publish` it only builds the zip, e.g. for a manual upload.
-     On Windows run it from Git Bash: `bash` from PowerShell may be WSL, whose git sees the
-     checkout as modified (line endings) and the script refuses.
-- New tools reach MCP clients only after the client reloads its tool list (see the blog repo's
-  CLAUDE.md).
+Releasing (no CI needed):
+
+1. Bump `Version:` in the plugin header and `VERSION` in the class (the script refuses if they
+   differ), add a changelog entry, merge to `main`.
+2. On `main`, run `bin/release.sh --publish`. It builds `dist/spoko-content-mcp.zip` (top folder
+   `spoko-content-mcp/`) with `git archive` and creates the release `v<version>` with the
+   changelog entry as notes. Without `--publish` it only builds the zip. On Windows, run it from
+   Git Bash: `bash` started from PowerShell may be WSL, whose git sees the checkout as modified
+   and the script refuses.
 
 ## Tests
 
-`tests/link-images.php` runs `link-images` against WordPress's real block parser and serializer
-with stubs for the rest (no database needed). Pass a WordPress checkout and the plugin file:
+No WordPress install or database needed:
 
 ```bash
-php tests/link-images.php /path/to/wordpress polo-blocks-mcp.php
-```
-
-It ends with `ALL PASS` (exit 0) or `FAILURES` (exit 1).
-
-`tests/updater.php` checks the updater against stubbed WordPress and GitHub responses (newer,
-same and older release, API errors, private-repo download):
-
-```bash
+php tests/link-images.php /path/to/wordpress spoko-content-mcp.php
 php tests/updater.php
 ```
 
+`link-images.php` runs `link-images` against WordPress's real block parser and serializer (from
+the given WordPress checkout) with stubs for the rest. `updater.php` checks the updater against
+stubbed GitHub responses. Both exit 0 when everything passes.
+
+## Upgrading from Polo Blocks MCP (1.x)
+
+Version 2.0 renamed the plugin (folder `spoko-content-mcp`), its tools (`spoko-content-*`) and its
+endpoint (`/wp-json/spoko/content`). WordPress sees it as a new plugin:
+
+1. Install and activate Spoko Content MCP, then deactivate and delete Polo Blocks MCP.
+2. Until 3.0 the old endpoint `/wp-json/polo/blocks` serves the same tools, so existing MCP
+   clients stay connected. The tools have the new names (`spoko-content-get-outline`, not
+   `polo-blocks-get-outline`), so tool allowlists and saved prompts need updating either way.
+   Switch clients to `/wp-json/spoko/content` when convenient.
+
 ## Changelog
 
-- **1.3.0**: updates from GitHub releases (`updater.php`), `bin/release.sh`.
-- **1.2.1**: `link-images` writes links on the public address `https://polo.blue/images/…` instead of
-  `blog.polo.blue` / `img.polo.blue`.
+- **2.0.0**: renamed to Spoko Content MCP (repo `wordpress-content-mcp`, tools `spoko-content-*`,
+  endpoint `spoko/content`; the old `polo/blocks` endpoint stays until 3.0). Updates from GitHub
+  releases (`updater.php`, `bin/release.sh`). The public media address for `link-images` is a
+  setting (`SPOKO_CONTENT_MCP_MEDIA_BASE`, filters) instead of a fixed host. MIT license.
+- **1.2.1**: `link-images` writes links on a fixed public media address.
 - **1.2.0**: `link-images` tool. Write flow split into a shared `save()` step.
-- **1.1.0**: version running on blog.polo.blue when this repo was created.
+- **1.1.0**: first version in this repo.
+
+## License
+
+[MIT](LICENSE) © spoko.space
