@@ -1,6 +1,6 @@
 <?php
 /**
- * Updates Spoko Content MCP from the GitHub releases of spokospace/wordpress-content-mcp.
+ * Updates Spoko Content Editor for MCP from the GitHub releases of spokospace/wordpress-content-mcp.
  *
  * WordPress shows a new release on the Plugins screen like any other plugin update, and
  * installs it on its own when auto-updates are enabled for the plugin. A release is used only

@@ -1,11 +1,11 @@
-=== Spoko Content MCP ===
+=== Spoko Content Editor for MCP ===
 Contributors: spokospace
 Tags: mcp, ai, gutenberg, blocks, abilities
 Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: mcp-adapter
-Stable tag: 2.0.1
+Stable tag: 2.0.2
 License: MIT
 License URI: https://opensource.org/license/mit
 
@@ -13,7 +13,7 @@ Lets AI agents read and edit posts block by block over MCP, with a hash check, a
 
 == Description ==
 
-Spoko Content MCP gives AI agents (Claude, Cursor or any other MCP client) safe, block-level tools for WordPress content. It runs on the official [MCP Adapter](https://wordpress.org/plugins/mcp-adapter/) and the Abilities API that ships with WordPress 6.9.
+Spoko Content Editor for MCP gives AI agents (Claude, Cursor or any other MCP client) safe, block-level tools for WordPress content. It runs on the official [MCP Adapter](https://wordpress.org/plugins/mcp-adapter/) and the Abilities API that ships with WordPress 6.9.
 
 An agent that rewrites a whole post to change one paragraph can break blocks it never meant to touch, or overwrite an edit someone made a minute ago. This plugin gives it smaller, safer steps:
 
@@ -48,7 +48,7 @@ Development happens on [GitHub](https://github.com/spokospace/wordpress-content-
 == Installation ==
 
 1. Install and activate the [MCP Adapter](https://wordpress.org/plugins/mcp-adapter/) plugin.
-2. Install and activate Spoko Content MCP.
+2. Install and activate Spoko Content Editor for MCP.
 3. Create a WordPress user for the agent and an application password for it (Users > Profile > Application Passwords).
 4. Point your MCP client at `https://your-site/wp-json/spoko/content`, for example with `@automattic/mcp-wordpress-remote`, using that user and application password.
 
@@ -71,6 +71,9 @@ Every save creates a normal revision. Restore it from the block editor (Revision
 The tools work on block content. Classic (freeform) content is reported as such and left alone.
 
 == Changelog ==
+
+= 2.0.2 =
+* Renamed to Spoko Content Editor for MCP. The slug, the endpoint and the abilities are unchanged.
 
 = 2.0.1 =
 * One endpoint: `/wp-json/spoko/content`.

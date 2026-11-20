@@ -59,4 +59,4 @@ notes=$(awk -v v="$version" '
 	on { print }
 ' README.md)
 gh release create "v$version" dist/spoko-content-mcp.zip \
-	--target "$(git rev-parse HEAD)" --title "$version" --notes "${notes:-Spoko Content MCP $version}"
+	--target "$(git rev-parse HEAD)" --title "$version" --notes "${notes:-Spoko Content Editor for MCP $version}"

@@ -19,7 +19,7 @@ function add_filter() {}
 function add_action() {}
 function plugin_basename( $file ) { return 'spoko-content-mcp/spoko-content-mcp.php'; }
 function get_file_data( $file, $headers ) {
-	return array( 'Name' => 'Spoko Content MCP', 'Author' => 'spoko.space', 'RequiresPHP' => '7.4' );
+	return array( 'Name' => 'Spoko Content Editor for MCP', 'Author' => 'spoko.space', 'RequiresPHP' => '7.4' );
 }
 function get_transient( $k ) { return $GLOBALS['t']['transients'][ $k ] ?? false; }
 function set_transient( $k, $v, $ttl ) { $GLOBALS['t']['transients'][ $k ] = $v; $GLOBALS['t']['ttl'][ $k ] = $ttl; return true; }
@@ -130,7 +130,7 @@ check( 'transient without checked untouched', $tr === Spoko_Content_MCP_Updater:
 // Details popup.
 serve( release_json( 'v2.1.0' ) );
 $info = Spoko_Content_MCP_Updater::info( false, 'plugin_information', (object) array( 'slug' => 'spoko-content-mcp' ) );
-check( 'info for our slug', is_object( $info ) && '2.1.0' === $info->version && 'Spoko Content MCP' === $info->name && false !== strpos( $info->sections['changelog'], '&lt;b&gt;' ) );
+check( 'info for our slug', is_object( $info ) && '2.1.0' === $info->version && 'Spoko Content Editor for MCP' === $info->name && false !== strpos( $info->sections['changelog'], '&lt;b&gt;' ) );
 check( 'info for other slug untouched', 'x' === Spoko_Content_MCP_Updater::info( 'x', 'plugin_information', (object) array( 'slug' => 'akismet' ) ) );
 
 // Flush after a plugin update.
