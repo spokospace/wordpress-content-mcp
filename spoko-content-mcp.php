@@ -1,9 +1,9 @@
 <?php
 /**
- * Plugin Name:       Spoko Content MCP
+ * Plugin Name:       Spoko Content Editor for MCP
  * Plugin URI:        https://github.com/spokospace/wordpress-content-mcp
  * Description:       Lets AI agents read and edit posts and their Gutenberg blocks safely, through the WordPress MCP Adapter.
- * Version:           2.0.1
+ * Version:           2.0.2
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -29,7 +29,7 @@ final class Spoko_Content_MCP {
 	/**
 	 * Must match the Version header (bin/release.sh refuses to build when they differ).
 	 */
-	const VERSION = '2.0.1';
+	const VERSION = '2.0.2';
 
 	/**
 	 * Blank-line separator matching the line endings of the post being edited.

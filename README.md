@@ -1,9 +1,9 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="art/cover-dark.jpg">
-  <img alt="Spoko Content MCP: AI agents read and edit WordPress posts block by block, with a hash check and a revision on every save" src="art/cover-light.jpg">
+  <img alt="Spoko Content Editor for MCP: AI agents read and edit WordPress posts block by block, with a hash check and a revision on every save" src="art/cover-light.jpg">
 </picture>
 
-# Spoko Content MCP
+# Spoko Content Editor for MCP
 
 [![Latest release](https://img.shields.io/github/v/release/spokospace/wordpress-content-mcp)](https://github.com/spokospace/wordpress-content-mcp/releases)
 [![WordPress](https://img.shields.io/badge/WordPress-6.9%2B-21759b)](https://wordpress.org)
@@ -176,6 +176,8 @@ stubbed GitHub responses. Both exit 0 when everything passes.
 
 ## Changelog
 
+- **2.0.2**: renamed to Spoko Content Editor for MCP. The slug (`spoko-content-mcp`), the endpoint
+  and the abilities are unchanged.
 - **2.0.1**: one endpoint only, `/wp-json/spoko/content`.
 - **2.0.0**: first public release. Block tools (`find-posts`, `get-outline`, `get-blocks`,
   `validate-post`, `find-media`, `replace-block`, `insert-blocks`, `delete-block`, `move-blocks`,
@@ -192,7 +194,7 @@ stubbed GitHub responses. Both exit 0 when everything passes.
   </picture>
 </a>
 
-Spoko Content MCP is built and maintained by [spoko.space](https://spoko.space): websites,
+Spoko Content Editor for MCP is built and maintained by [spoko.space](https://spoko.space): websites,
 online shops and web apps, headless WordPress included. Questions and ideas are welcome as
 [issues](https://github.com/spokospace/wordpress-content-mcp/issues).
 
