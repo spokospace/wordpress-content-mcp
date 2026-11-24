@@ -152,10 +152,14 @@ Releasing (no CI needed):
    notes. Without `--publish` it only builds the zips. On Windows, run it from Git Bash: `bash`
    started from PowerShell may be WSL, whose git sees the checkout as modified and the script
    refuses.
-3. WordPress.org (once the plugin is approved): copy the WordPress.org build into the SVN
-   checkout's `trunk/`, copy `trunk/` to `tags/<version>/`, and `svn commit`. The directory
-   assets (banner, icon) are `art/wporg/*.jpg|png` and go to SVN `assets/`; repaint them with
-   `python art/wporg/render.py`.
+3. WordPress.org ([wordpress.org/plugins/spoko-content-mcp](https://wordpress.org/plugins/spoko-content-mcp/),
+   SVN `https://plugins.svn.wordpress.org/spoko-content-mcp`): unzip the WordPress.org build
+   into the SVN checkout's `trunk/` (replacing its files), `svn copy trunk tags/<version>`, and
+   `svn commit --username spokospace`. SVN wants the SVN password generated under Account &
+   Security on profiles.wordpress.org, not the login password. The directory assets (banner,
+   icon) are `art/wporg/*.jpg|png` and go to SVN `assets/` with `svn:mime-type` set; repaint
+   them with `python art/wporg/render.py`. `.gitattributes` keeps the zips on LF line endings,
+   also when the checkout uses `core.autocrlf`.
 
 Before a WordPress.org release, run [Plugin Check](https://wordpress.org/plugins/plugin-check/)
 on the WordPress.org build (`wp plugin check spoko-content-mcp`); 2.0.1 passes with no errors or

@@ -1,0 +1,7 @@
+# LF everywhere, also on Windows with core.autocrlf=true, so the zips that
+# bin/release.sh builds with git archive (and the WordPress.org SVN trunk) get LF.
+* text=auto eol=lf
+
+*.jpg binary
+*.png binary
+*.zip binary
