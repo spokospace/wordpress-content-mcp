@@ -4,7 +4,7 @@
 define( 'ABSPATH', $argv[1] . '/' );
 define( 'WPINC', 'wp-includes' );
 $GLOBALS['filters'] = array();
-function apply_filters( $tag, $value ) { return isset( $GLOBALS['filters'][ $tag ] ) ? $GLOBALS['filters'][ $tag ]( $value ) : $value; }
+function apply_filters( $tag, $value, ...$args ) { return isset( $GLOBALS['filters'][ $tag ] ) ? $GLOBALS['filters'][ $tag ]( $value, ...$args ) : $value; }
 function add_action() {}
 function add_filter() {}
 function do_action() {}
@@ -32,6 +32,18 @@ function wp_get_post_revisions() { return array( 999 => true ); }
 function wp_get_attachment_url( $id ) { return 24399 === $id ? false : "https://cms.example.com/images/2021/06/att-$id-scaled.jpg"; }
 // Stored as http on purpose: the rewrite to the public address must not depend on the scheme.
 function wp_get_upload_dir() { return array( 'baseurl' => 'http://cms.example.com/images' ); }
+// The media library by _wp_attached_file. productGfx has one attachment per language (Polylang).
+$GLOBALS['library'] = array( '2026/05/LnAAAgGpqeA-1920.jpg' => array( 30784 ), '2020/07/productGfx_643a.jpg' => array( 769, 770 ), '2022/01/big-scaled.jpg' => array( 31000 ) );
+$GLOBALS['languages'] = array( 1 => 'pl', 769 => 'en', 770 => 'pl' );
+function get_posts( $args ) {
+	$ids = array();
+	foreach ( $args['meta_query'][0]['value'] as $file ) {
+		$ids = array_merge( $ids, $GLOBALS['library'][ $file ] ?? array() );
+	}
+	sort( $ids );
+	return $ids;
+}
+function pll_get_post_language( $id ) { return $GLOBALS['languages'][ $id ] ?? false; }
 
 require $argv[2];
 
@@ -77,6 +89,8 @@ $content = implode( "\n\n", array(
 	img( 0, array(), '<figure class="wp-block-image"><img src="https://img.example.com/2020/07/productGfx_643a.jpg" alt=""/></figure>' ),
 	// id whose attachment is gone (lost on a language switch), no suffix
 	img( 24399, array(), '<figure class="wp-block-image"><img src="https://img.example.com/2020/07/lost.jpg" alt="" class="wp-image-24399"/></figure>' ),
+	// no id, resized copy of a big upload in the library -> attachment restored, -scaled file
+	img( 0, array(), '<figure class="wp-block-image"><img src="https://cms.example.com/images/2022/01/big-1024x768.jpg" alt=""/></figure>' ),
 ) );
 
 $post = new WP_Post(); $post->ID = 1; $post->post_content = $content;
@@ -94,8 +108,8 @@ check( 'stale hash refused', is_wp_error( $r ) && 'stale_hash' === $r->code );
 $r = Spoko_Content_MCP::link_images( array( 'post_id' => 1, 'expected_hash' => $hash, 'dry_run' => true ) );
 echo json_encode( array( 'linked' => $r['linked'], 'skipped' => $r['skipped'] ), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES ), "\n";
 check( 'dry run does not save', ! $GLOBALS['saved'] && $GLOBALS['posts'][1]->post_content === $content && true === $r['dry_run'] );
-check( 'dry run links 10 images', 10 === count( $r['linked'] ) );
-check( 'linked paths', array( '2.0', '2.2', '4.0.0.0', '8', '12', '14', '16', '18', '20', '22' ) === array_column( $r['linked'], 'path' ) );
+check( 'dry run links 11 images', 11 === count( $r['linked'] ) );
+check( 'linked paths', array( '2.0', '2.2', '4.0.0.0', '8', '12', '14', '16', '18', '20', '22', '24' ) === array_column( $r['linked'], 'path' ) );
 check( 'skips opt-out and unknown file', array( array( 'path' => '6', 'reason' => 'no-lightbox' ), array( 'path' => '10', 'reason' => 'full file unknown' ) ) === $r['skipped'] );
 
 // 3. real save
@@ -108,15 +122,30 @@ check( 'already linked untouched, no double <a>', 1 === substr_count( $new, 'lin
 check( 'nested in columns linked', false !== strpos( $new, 'att-24394-scaled.jpg' ) );
 check( 'fallback strips -WxH', false !== strpos( $new, '<a href="https://example.com/images/2021/06/coolbox.jpg">' ) );
 check( 'img.example.com src -> public address', false !== strpos( $new, '<a href="https://example.com/images/2023/06/IMAG1884.jpg">' ) );
-check( 'no id, no suffix, uploads src -> itself', false !== strpos( $new, '<a href="https://example.com/images/2026/05/LnAAAgGpqeA-1920.jpg">' ) );
-check( 'no id, no suffix, old host src -> itself', false !== strpos( $new, '<a href="https://example.com/images/2020/07/productGfx_643a.jpg">' ) );
-check( 'lost attachment, no suffix -> src', false !== strpos( $new, '<a href="https://example.com/images/2020/07/lost.jpg">' ) );
+check( 'restored ids reported', array( '18' => 30784, '20' => 770, '24' => 31000 ) === array_column( array_filter( $r['linked'], function ( $l ) { return isset( $l['restored_id'] ); } ), 'restored_id', 'path' ) );
+check( 'found in library -> id and class restored, attachment file', false !== strpos( $new, '<!-- wp:image {"id":30784,"sizeSlug":"large","linkDestination":"media"} -->' ) && false !== strpos( $new, '<a href="https://example.com/images/2021/06/att-30784-scaled.jpg"><img src="https://cms.example.com/images/2026/05/LnAAAgGpqeA-1920.jpg" alt="" class="wp-image-30784"/></a>' ) );
+check( 'one file, two languages -> the language of the post', false !== strpos( $new, '<img src="https://img.example.com/2020/07/productGfx_643a.jpg" alt="" class="wp-image-770"/>' ) );
+check( 'resized copy -> attachment of the -scaled original', false !== strpos( $new, '{"id":31000,' ) && false !== strpos( $new, 'att-31000-scaled.jpg"><img src="https://cms.example.com/images/2022/01/big-1024x768.jpg" alt="" class="wp-image-31000"/>' ) );
+check( 'dead id not in library -> kept, src linked', false !== strpos( $new, '<a href="https://example.com/images/2020/07/lost.jpg"><img src="https://img.example.com/2020/07/lost.jpg" alt="" class="wp-image-24399"/>' ) );
+$GLOBALS['filters']['spoko_content_mcp_image_attachment'] = function ( $id, $ids ) { return $ids[0]; };
+$f = new ReflectionMethod( 'Spoko_Content_MCP', 'find_attachment' );
+if ( PHP_VERSION_ID < 80100 ) {
+	$f->setAccessible( true );
+}
+check( 'filter picks the attachment', 769 === $f->invoke( null, 'https://img.example.com/2020/07/productGfx_643a-300x200.jpg', 1 ) );
+check( 'foreign host never looked up', 0 === $f->invoke( null, 'https://photos.example.org/2020/07/productGfx_643a.jpg', 1 ) );
+unset( $GLOBALS['filters']['spoko_content_mcp_image_attachment'] );
 check( 'foreign host left alone', false !== strpos( $new, '<a href="https://photos.example.org/pic.jpg">' ) );
 check( 'no subdomain in any new link', ! preg_grep( '#^https?://(img|cms)\.example\.com/#', array_column( $r['linked'], 'href' ) ) );
 check( 'opt-out untouched', false === strpos( $new, 'att-500' ) );
 check( 'caption link kept, image linked', false !== strpos( $new, '<a href="https://example.com/images/2021/06/att-600-scaled.jpg"><img' ) && false !== strpos( $new, '<a href="/y">cap</a>' ) );
 check( 'img count unchanged', substr_count( $content, '<img' ) === substr_count( $new, '<img' ) );
-check( 'everything outside images byte-identical', preg_replace( '#<a href="[^"]*">(<img[^>]*>)</a>#', '$1', str_replace( ',"linkDestination":"media"', '', str_replace( '"linkDestination":"none"', '"linkDestination":"media"', $new ) ) ) === preg_replace( '#<a href="[^"]*">(<img[^>]*>)</a>#', '$1', str_replace( ',"linkDestination":"media"', '', str_replace( '"linkDestination":"none"', '"linkDestination":"media"', $content ) ) ) );
+// Undo what link-images may change: the link, linkDestination, and a restored id and its class.
+function unlink_images( $html ) {
+	$html = preg_replace( array( '/"id":(30784|770|31000),/', '/ class="wp-image-(30784|770|31000)"/' ), '', $html );
+	return preg_replace( '#<a href="[^"]*">(<img[^>]*>)</a>#', '$1', str_replace( ',"linkDestination":"media"', '', str_replace( '"linkDestination":"none"', '"linkDestination":"media"', $html ) ) );
+}
+check( 'everything outside images byte-identical', unlink_images( $new ) === unlink_images( $content ) );
 
 // 4. idempotent: second run links nothing and does not save
 $GLOBALS['saved'] = array();
