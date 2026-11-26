@@ -3,7 +3,7 @@
  * Plugin Name:       Spoko Content Editor for MCP
  * Plugin URI:        https://github.com/spokospace/wordpress-content-mcp
  * Description:       Lets AI agents read and edit posts and their Gutenberg blocks safely, through the WordPress MCP Adapter.
- * Version:           2.0.2
+ * Version:           2.0.3
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -29,7 +29,7 @@ final class Spoko_Content_MCP {
 	/**
 	 * Must match the Version header (bin/release.sh refuses to build when they differ).
 	 */
-	const VERSION = '2.0.2';
+	const VERSION = '2.0.3';
 
 	/**
 	 * Blank-line separator matching the line endings of the post being edited.
@@ -802,18 +802,37 @@ final class Spoko_Content_MCP {
 
 	/**
 	 * Full-size file of an image, on the public media address: the attachment URL (the "-scaled"
-	 * file for big uploads), or the src without its -WxH size suffix when there is no attachment.
-	 * '' when neither works.
+	 * file for big uploads), or, when there is no attachment, the src without its -WxH size suffix.
+	 * A src without a size suffix is the full file itself when it lives in the media library (an
+	 * image inserted by URL, or one whose attachment ID was lost, e.g. when a translation plugin
+	 * switched the post's language). '' when none of this works, e.g. for a file on another host.
 	 */
 	private static function full_image_url( int $id, string $src ): string {
 		$full = $id ? wp_get_attachment_url( $id ) : false;
 		if ( ! $full ) {
 			$full = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)(?:\?.*)?$/', '$1', $src, 1, $count );
-			if ( ! $count ) {
+			if ( ! $count && null === self::media_path( $src ) ) {
 				return '';
 			}
 		}
 		return self::public_media_url( $full );
+	}
+
+	/**
+	 * Path of a URL inside the media library: the part after the uploads base URL or after a base
+	 * added with the filter spoko_content_mcp_media_aliases (an old media host). The scheme is
+	 * ignored, since the uploads base URL may be stored as http. null for any other URL.
+	 */
+	private static function media_path( string $url ) {
+		$bases = (array) apply_filters( 'spoko_content_mcp_media_aliases', array( wp_get_upload_dir()['baseurl'] ) );
+		$rest  = preg_replace( '#^https?:#i', '', $url );
+		foreach ( $bases as $base ) {
+			$base = preg_replace( '#^https?:#i', '', rtrim( (string) $base, '/' ) ) . '/';
+			if ( '/' !== $base && 0 === stripos( $rest, $base ) ) {
+				return substr( $rest, strlen( $base ) );
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -830,16 +849,8 @@ final class Spoko_Content_MCP {
 		if ( '' === $public ) {
 			return $url;
 		}
-		$bases = (array) apply_filters( 'spoko_content_mcp_media_aliases', array( wp_get_upload_dir()['baseurl'] ) );
-		$rest  = preg_replace( '#^https?:#i', '', $url );
-		foreach ( $bases as $base ) {
-			// Compare without the scheme: the uploads base URL may be stored as http.
-			$base = preg_replace( '#^https?:#i', '', rtrim( (string) $base, '/' ) ) . '/';
-			if ( '/' !== $base && 0 === stripos( $rest, $base ) ) {
-				return $public . '/' . substr( $rest, strlen( $base ) );
-			}
-		}
-		return $url;
+		$path = self::media_path( $url );
+		return null === $path ? $url : $public . '/' . $path;
 	}
 
 	/**

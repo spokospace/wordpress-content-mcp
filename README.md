@@ -97,7 +97,9 @@ the post, galleries and columns included, `link-images`:
 
 - **links it** the way the editor does for "Link to: Media file": `linkDestination: "media"` and
   `<a href="…">` around the `<img>`. The file is the attachment's full URL (the `-scaled` file for
-  big uploads); without an attachment, the `src` without its `-WxH` size suffix;
+  big uploads); without an attachment, the `src` without its `-WxH` size suffix, or the `src`
+  itself when it has no size suffix and lies in the media library (the uploads or a media alias),
+  e.g. an image inserted by URL or one whose attachment ID was lost on a language switch;
 - **leaves it alone** when it already has a link outside the caption (never a double `<a>`);
 - **skips it**, with a reason in `skipped`, when the figure has the class `no-lightbox` (the
   opt-out), the full file cannot be told, or the markup is unexpected.
@@ -180,6 +182,8 @@ stubbed GitHub responses. Both exit 0 when everything passes.
 
 ## Changelog
 
+- **2.0.3**: `link-images` also links images with no attachment and no size suffix when their
+  `src` lies in the media library: images inserted by URL, or ones whose attachment ID was lost.
 - **2.0.2**: renamed to Spoko Content Editor for MCP. The slug (`spoko-content-mcp`), the endpoint
   and the abilities are unchanged.
 - **2.0.1**: one endpoint only, `/wp-json/spoko/content`.

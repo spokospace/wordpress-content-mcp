@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: mcp-adapter
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: MIT
 License URI: https://opensource.org/license/mit
 
@@ -71,6 +71,9 @@ Every save creates a normal revision. Restore it from the block editor (Revision
 The tools work on block content. Classic (freeform) content is reported as such and left alone.
 
 == Changelog ==
+
+= 2.0.3 =
+* Link images: images with no attachment and no size suffix are linked to their own file when it lies in the media library (images inserted by URL, or ones whose attachment ID was lost).
 
 = 2.0.2 =
 * Renamed to Spoko Content Editor for MCP. The slug, the endpoint and the abilities are unchanged.
