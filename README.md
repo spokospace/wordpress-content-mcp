@@ -71,7 +71,7 @@ tools.
 | `get-outline` | no | Block tree with paths, names and text previews, plus `content_hash`. |
 | `get-blocks` | no | Serialized markup of blocks by path, plus `content_hash`. |
 | `validate-post` | no | Report broken block structure. |
-| `find-media` | no | Search the media library: IDs, URLs, image sizes. |
+| `find-media` | no | Search the media library by title or file name: IDs, URLs, image sizes. |
 | `replace-block` | yes | Replace the block at a path with new markup. |
 | `insert-blocks` | yes | Insert blocks before or after a path. |
 | `delete-block` | yes | Delete the block at a path. |
@@ -97,7 +97,14 @@ the post, galleries and columns included, `link-images`:
 
 - **links it** the way the editor does for "Link to: Media file": `linkDestination: "media"` and
   `<a href="…">` around the `<img>`. The file is the attachment's full URL (the `-scaled` file for
-  big uploads); without an attachment, the `src` without its `-WxH` size suffix;
+  big uploads); without an attachment, the `src` without its `-WxH` size suffix, or the `src`
+  itself when it has no size suffix and lies in the media library (the uploads or a media alias);
+- **restores a lost attachment ID**: when the block has no `id`, or its `id` points at a deleted
+  attachment (e.g. after a translation plugin switched the post's language), it looks the file up
+  in the media library and sets `id` and the `wp-image-{id}` class back, as the editor would. When
+  several attachments share the file (Polylang's media translation), the one in the post's
+  language wins; the filter `spoko_content_mcp_image_attachment` (`$id, $ids, $post_id, $src`)
+  can pick another. `linked` reports it as `restored_id`;
 - **leaves it alone** when it already has a link outside the caption (never a double `<a>`);
 - **skips it**, with a reason in `skipped`, when the figure has the class `no-lightbox` (the
   opt-out), the full file cannot be told, or the markup is unexpected.
@@ -180,6 +187,10 @@ stubbed GitHub responses. Both exit 0 when everything passes.
 
 ## Changelog
 
+- **2.0.3**: `link-images` finds the attachment of an image whose ID is missing or points at a
+  deleted attachment (e.g. lost on a language switch) by its file and restores the ID; images not
+  in the media library are linked to their own `src` when it lies under the uploads or a media
+  alias. `find-media` also matches file names.
 - **2.0.2**: renamed to Spoko Content Editor for MCP. The slug (`spoko-content-mcp`), the endpoint
   and the abilities are unchanged.
 - **2.0.1**: one endpoint only, `/wp-json/spoko/content`.

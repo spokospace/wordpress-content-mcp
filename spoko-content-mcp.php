@@ -3,7 +3,7 @@
  * Plugin Name:       Spoko Content Editor for MCP
  * Plugin URI:        https://github.com/spokospace/wordpress-content-mcp
  * Description:       Lets AI agents read and edit posts and their Gutenberg blocks safely, through the WordPress MCP Adapter.
- * Version:           2.0.2
+ * Version:           2.0.3
  * Requires at least: 6.9
  * Requires PHP:      7.4
  * Requires Plugins:  mcp-adapter
@@ -29,7 +29,7 @@ final class Spoko_Content_MCP {
 	/**
 	 * Must match the Version header (bin/release.sh refuses to build when they differ).
 	 */
-	const VERSION = '2.0.2';
+	const VERSION = '2.0.3';
 
 	/**
 	 * Blank-line separator matching the line endings of the post being edited.
@@ -520,6 +520,9 @@ final class Spoko_Content_MCP {
 		if ( ! empty( $input['mime'] ) ) {
 			$args['post_mime_type'] = (string) $input['mime'];
 		}
+		// Match file names too, as the media library and the REST API do. WP_Query reads and
+		// removes this filter on the next query, so it does not leak into other queries.
+		add_filter( 'wp_allow_query_attachment_by_filename', '__return_true' );
 
 		$results = array();
 		foreach ( get_posts( $args ) as $attachment ) {
@@ -709,7 +712,7 @@ final class Spoko_Content_MCP {
 
 		$linked  = array();
 		$skipped = array();
-		$blocks  = self::link_image_blocks( parse_blocks( $post->post_content ), array(), $linked, $skipped );
+		$blocks  = self::link_image_blocks( parse_blocks( $post->post_content ), array(), $post->ID, $linked, $skipped );
 
 		$result = array(
 			'post_id' => $post->ID,
@@ -732,20 +735,21 @@ final class Spoko_Content_MCP {
 	 *
 	 * @param array $blocks  Block list.
 	 * @param int[] $prefix  Path of the parent.
-	 * @param array $linked  Collects { path, href }.
+	 * @param int   $post_id Post the blocks belong to.
+	 * @param array $linked  Collects { path, href } and, for a restored attachment, its id.
 	 * @param array $skipped Collects { path, reason } for unlinked images that were left alone.
 	 */
-	private static function link_image_blocks( array $blocks, array $prefix, array &$linked, array &$skipped ): array {
+	private static function link_image_blocks( array $blocks, array $prefix, int $post_id, array &$linked, array &$skipped ): array {
 		foreach ( $blocks as $i => $block ) {
 			$path = array_merge( $prefix, array( $i ) );
 			if ( 'core/image' === $block['blockName'] ) {
-				$outcome = self::link_image_block( $block );
+				$outcome = self::link_image_block( $block, $post_id );
 				if ( is_array( $outcome ) ) {
 					$blocks[ $i ] = $outcome['block'];
 					$linked[]     = array(
 						'path' => implode( '.', $path ),
 						'href' => $outcome['href'],
-					);
+					) + ( $outcome['restored_id'] ? array( 'restored_id' => $outcome['restored_id'] ) : array() );
 				} elseif ( '' !== $outcome ) {
 					$skipped[] = array(
 						'path'   => implode( '.', $path ),
@@ -754,17 +758,19 @@ final class Spoko_Content_MCP {
 				}
 				continue;
 			}
-			$blocks[ $i ]['innerBlocks'] = self::link_image_blocks( $block['innerBlocks'], $path, $linked, $skipped );
+			$blocks[ $i ]['innerBlocks'] = self::link_image_blocks( $block['innerBlocks'], $path, $post_id, $linked, $skipped );
 		}
 		return $blocks;
 	}
 
 	/**
-	 * Links one image block to its full file.
+	 * Links one image block to its full file. An image whose attachment ID is missing or points at
+	 * a deleted attachment gets the ID back when its file is found in the media library.
 	 *
-	 * @return array|string { block, href } when linked; '' when it already has a link; otherwise why it was skipped.
+	 * @return array|string { block, href, restored_id } when linked; '' when it already has a link;
+	 *                      otherwise why it was skipped.
 	 */
-	private static function link_image_block( array $block ) {
+	private static function link_image_block( array $block, int $post_id ) {
 		$html = $block['innerHTML'];
 
 		// A link outside the caption means the image is already linked.
@@ -782,38 +788,129 @@ final class Spoko_Content_MCP {
 			return 'no img';
 		}
 
-		$href = self::full_image_url( isset( $block['attrs']['id'] ) ? (int) $block['attrs']['id'] : 0, html_entity_decode( $img[1][0] ) );
+		$src      = html_entity_decode( $img[1][0] );
+		$tag      = $img[0][0];
+		$id       = isset( $block['attrs']['id'] ) ? (int) $block['attrs']['id'] : 0;
+		$restored = 0;
+		if ( ! $id || ! wp_get_attachment_url( $id ) ) {
+			$restored = self::find_attachment( $src, $post_id );
+			if ( $restored ) {
+				$id             = $restored;
+				$tag            = self::with_image_class( $tag, $restored );
+				$block['attrs'] = array( 'id' => $restored ) + $block['attrs'];
+			}
+		}
+
+		$href = self::full_image_url( $id, $src );
 		if ( '' === $href ) {
 			return 'full file unknown';
 		}
 
-		$tag  = $img[0][0];
-		$html = substr_replace( $html, '<a href="' . esc_url( $href ) . '">' . $tag . '</a>', $img[0][1], strlen( $tag ) );
+		$html = substr_replace( $html, '<a href="' . esc_url( $href ) . '">' . $tag . '</a>', $img[0][1], strlen( $img[0][0] ) );
 
 		$block['attrs']['linkDestination'] = 'media';
 		$block['innerHTML']                = $html;
 		$block['innerContent']             = array( $html );
 
 		return array(
-			'block' => $block,
-			'href'  => $href,
+			'block'       => $block,
+			'href'        => $href,
+			'restored_id' => $restored,
 		);
 	}
 
 	/**
+	 * Finds the attachment of a media library file by its URL: the file itself, or the full file
+	 * of a resized copy (-WxH, also as the "-scaled" original of a big upload). Several attachments
+	 * may share one file, e.g. one per language with Polylang's media translation; then the one in
+	 * the post's language wins. The filter spoko_content_mcp_image_attachment can pick another
+	 * (a different translation plugin). 0 when the file is not in the media library.
+	 */
+	private static function find_attachment( string $src, int $post_id ): int {
+		$path = self::media_path( $src );
+		if ( null === $path ) {
+			return 0;
+		}
+		$path = rawurldecode( preg_replace( '/[?#].*$/', '', $path ) );
+		$full = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)$/', '$1', $path );
+
+		$ids = get_posts(
+			array(
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'fields'         => 'ids',
+				'posts_per_page' => 20,
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+				'lang'           => '', // Polylang: every language.
+				'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- one lookup per unlinked image, as attachment_url_to_postid() does.
+					array(
+						'key'     => '_wp_attached_file',
+						'value'   => array_unique( array( $path, $full, preg_replace( '/(\.[A-Za-z0-9]+)$/', '-scaled$1', $full ) ) ),
+						'compare' => 'IN',
+					),
+				),
+			)
+		);
+		$ids = array_map( 'intval', $ids );
+
+		$found = $ids ? $ids[0] : 0;
+		if ( count( $ids ) > 1 && function_exists( 'pll_get_post_language' ) ) {
+			$lang = pll_get_post_language( $post_id );
+			foreach ( $ids as $candidate ) {
+				if ( $lang && pll_get_post_language( $candidate ) === $lang ) {
+					$found = $candidate;
+					break;
+				}
+			}
+		}
+		return (int) apply_filters( 'spoko_content_mcp_image_attachment', $found, $ids, $post_id, $src );
+	}
+
+	/**
+	 * Sets the editor's wp-image-{id} class on an <img> tag, replacing an old one.
+	 */
+	private static function with_image_class( string $tag, int $id ): string {
+		if ( preg_match( '/(?<=\s)class="([^"]*)"/i', $tag, $class, PREG_OFFSET_CAPTURE ) ) {
+			$classes = trim( preg_replace( '/(?:^|\s)wp-image-\d+(?=\s|$)/', '', $class[1][0] ) . ' wp-image-' . $id );
+			return substr_replace( $tag, $classes, $class[1][1], strlen( $class[1][0] ) );
+		}
+		return preg_replace( '#\s*(/?>)$#', ' class="wp-image-' . $id . '"$1', $tag, 1 );
+	}
+
+	/**
 	 * Full-size file of an image, on the public media address: the attachment URL (the "-scaled"
-	 * file for big uploads), or the src without its -WxH size suffix when there is no attachment.
-	 * '' when neither works.
+	 * file for big uploads), or, when there is no attachment, the src without its -WxH size suffix.
+	 * A src without a size suffix is the full file itself when it lives in the media library (an
+	 * image inserted by URL, or one whose attachment ID was lost, e.g. when a translation plugin
+	 * switched the post's language). '' when none of this works, e.g. for a file on another host.
 	 */
 	private static function full_image_url( int $id, string $src ): string {
 		$full = $id ? wp_get_attachment_url( $id ) : false;
 		if ( ! $full ) {
 			$full = preg_replace( '/-\d+x\d+(\.[A-Za-z0-9]+)(?:\?.*)?$/', '$1', $src, 1, $count );
-			if ( ! $count ) {
+			if ( ! $count && null === self::media_path( $src ) ) {
 				return '';
 			}
 		}
 		return self::public_media_url( $full );
+	}
+
+	/**
+	 * Path of a URL inside the media library: the part after the uploads base URL or after a base
+	 * added with the filter spoko_content_mcp_media_aliases (an old media host). The scheme is
+	 * ignored, since the uploads base URL may be stored as http. null for any other URL.
+	 */
+	private static function media_path( string $url ) {
+		$bases = (array) apply_filters( 'spoko_content_mcp_media_aliases', array( wp_get_upload_dir()['baseurl'] ) );
+		$rest  = preg_replace( '#^https?:#i', '', $url );
+		foreach ( $bases as $base ) {
+			$base = preg_replace( '#^https?:#i', '', rtrim( (string) $base, '/' ) ) . '/';
+			if ( '/' !== $base && 0 === stripos( $rest, $base ) ) {
+				return substr( $rest, strlen( $base ) );
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -830,16 +927,8 @@ final class Spoko_Content_MCP {
 		if ( '' === $public ) {
 			return $url;
 		}
-		$bases = (array) apply_filters( 'spoko_content_mcp_media_aliases', array( wp_get_upload_dir()['baseurl'] ) );
-		$rest  = preg_replace( '#^https?:#i', '', $url );
-		foreach ( $bases as $base ) {
-			// Compare without the scheme: the uploads base URL may be stored as http.
-			$base = preg_replace( '#^https?:#i', '', rtrim( (string) $base, '/' ) ) . '/';
-			if ( '/' !== $base && 0 === stripos( $rest, $base ) ) {
-				return $public . '/' . substr( $rest, strlen( $base ) );
-			}
-		}
-		return $url;
+		$path = self::media_path( $url );
+		return null === $path ? $url : $public . '/' . $path;
 	}
 
 	/**

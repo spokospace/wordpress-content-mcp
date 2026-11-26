@@ -5,7 +5,7 @@ Requires at least: 6.9
 Tested up to: 7.1
 Requires PHP: 7.4
 Requires Plugins: mcp-adapter
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: MIT
 License URI: https://opensource.org/license/mit
 
@@ -29,7 +29,7 @@ An agent that rewrites a whole post to change one paragraph can break blocks it 
 * `get-outline`: the block tree with paths, names and text previews, plus the content hash.
 * `get-blocks`: the markup of blocks by path.
 * `validate-post`: report broken block structure.
-* `find-media`: search the media library.
+* `find-media`: search the media library by title or file name.
 * `replace-block`, `insert-blocks`, `delete-block`, `move-blocks`, `unwrap-block`: edit blocks by path.
 * `link-images`: link every unlinked image of a post to its full-size file, so a lightbox can open it.
 
@@ -71,6 +71,11 @@ Every save creates a normal revision. Restore it from the block editor (Revision
 The tools work on block content. Classic (freeform) content is reported as such and left alone.
 
 == Changelog ==
+
+= 2.0.3 =
+* Link images: an image whose attachment ID is missing or points at a deleted attachment (for example lost when a translation plugin switched the post's language) gets the ID back when its file is in the media library. With Polylang's media translation the attachment in the post's language is used; the filter `spoko_content_mcp_image_attachment` can pick another.
+* Link images: images not in the media library are linked to their own file when it lies under the uploads.
+* Find media: also matches file names, as the media library does.
 
 = 2.0.2 =
 * Renamed to Spoko Content Editor for MCP. The slug, the endpoint and the abilities are unchanged.
